@@ -11,6 +11,14 @@ class SharedPrefService {
   // ── Keys ─────────────────────────────────────────────────────────────
   static const String _keyIsLogin = 'is_login';
   static const String _keyIsProfileCompleted = 'is_profile_completed';
+
+  // User session keys
+  static const String _keyUid = 'uid';
+  static const String _keyUserRole = 'user_role';
+  static const String _keyUserName = 'user_name';
+  static const String _keyUserEmail = 'user_email';
+  static const String _keyUserPhone = 'user_phone';
+
   static const String _keyInvoicePrefix = 'invoice_prefix';
   static const String _keyInvoiceStartNumber = 'invoice_start_number';
   static const String _keyDefaultTerms = 'default_terms';
@@ -48,7 +56,58 @@ class SharedPrefService {
     return _prefs?.getBool(_keyIsProfileCompleted) ?? defaultValue;
   }
 
-  // ── Invoice Settings ─────────────────────────────────────────────────
+  // ── User Session ──────────────────────────────────────────────────────────
+  static Future<void> setUid(String value) async {
+    await init();
+    await _prefs?.setString(_keyUid, value);
+  }
+
+  static String? getUid() => _prefs?.getString(_keyUid);
+
+  static Future<void> setUserRole(String value) async {
+    await init();
+    await _prefs?.setString(_keyUserRole, value);
+  }
+
+  static String? getUserRole() => _prefs?.getString(_keyUserRole);
+
+  static Future<void> setUserName(String value) async {
+    await init();
+    await _prefs?.setString(_keyUserName, value);
+  }
+
+  static String getUserName({String defaultValue = ''}) =>
+      _prefs?.getString(_keyUserName) ?? defaultValue;
+
+  static Future<void> setUserEmail(String value) async {
+    await init();
+    await _prefs?.setString(_keyUserEmail, value);
+  }
+
+  static String getUserEmail({String defaultValue = ''}) =>
+      _prefs?.getString(_keyUserEmail) ?? defaultValue;
+
+  static Future<void> setUserPhone(String value) async {
+    await init();
+    await _prefs?.setString(_keyUserPhone, value);
+  }
+
+  static String getUserPhone({String defaultValue = ''}) =>
+      _prefs?.getString(_keyUserPhone) ?? defaultValue;
+
+  /// Clears all user session data (called on logout).
+  static Future<void> clearUserSession() async {
+    await init();
+    await _prefs?.remove(_keyIsLogin);
+    await _prefs?.remove(_keyUid);
+    await _prefs?.remove(_keyUserRole);
+    await _prefs?.remove(_keyUserName);
+    await _prefs?.remove(_keyUserEmail);
+    await _prefs?.remove(_keyUserPhone);
+    await _prefs?.remove(_keyIsProfileCompleted);
+  }
+
+
   static Future<void> setInvoicePrefix(String value) async {
     await init();
     await _prefs?.setString(_keyInvoicePrefix, value);

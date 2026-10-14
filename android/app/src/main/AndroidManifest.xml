@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for Android 13+ to show push notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Required for FCM REST API calls and RTDB SSE -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Allows FCM to restart when device reboots -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
         android:label="track_my_order"
         android:name="${applicationName}"

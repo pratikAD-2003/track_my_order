@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'customer_login_controller.dart';
+import 'login_controller.dart';
 
-class CustomerLoginScreen extends GetView<CustomerLoginController> {
-  const CustomerLoginScreen({super.key});
+class LoginScreen extends GetView<LoginController> {
+  const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final isCustomer = controller.isCustomer.value;
-      final themeColor = isCustomer ? const Color(0xFF0F62FE) : const Color(0xFF006837);
+      final themeColor =
+          isCustomer ? const Color(0xFF0F62FE) : const Color(0xFF006837);
       final isLogin = controller.isLoginTab.value;
 
       return Scaffold(
@@ -18,18 +19,21 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
         body: SafeArea(
           child: Column(
             children: [
-              // Top Bar Header
+              // ── Top Bar Header ──────────────────────────────────────────
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                padding:
+                    EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: () => Get.back(),
-                      icon: Icon(Icons.arrow_back_rounded, color: const Color(0xFF0F172A), size: 22.sp),
+                      icon: Icon(Icons.arrow_back_rounded,
+                          color: const Color(0xFF0F172A), size: 22.sp),
                     ),
                     const Spacer(),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 12.w, vertical: 6.h),
                       decoration: BoxDecoration(
                         color: themeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20.r),
@@ -37,13 +41,17 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                       child: Row(
                         children: [
                           Icon(
-                            isCustomer ? Icons.person_rounded : Icons.delivery_dining_rounded,
+                            isCustomer
+                                ? Icons.person_rounded
+                                : Icons.delivery_dining_rounded,
                             color: themeColor,
                             size: 16.sp,
                           ),
                           SizedBox(width: 6.w),
                           Text(
-                            isCustomer ? 'Customer Account' : 'Partner Account',
+                            isCustomer
+                                ? 'Customer Account'
+                                : 'Partner Account',
                             style: TextStyle(
                               color: themeColor,
                               fontSize: 12.sp,
@@ -59,13 +67,14 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
 
               Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 24.w, vertical: 12.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SizedBox(height: 12.h),
 
-                      // Brand Logo Circle
+                      // ── Brand Logo Circle ───────────────────────────────
                       Container(
                         width: 72.w,
                         height: 72.h,
@@ -81,7 +90,9 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                           ],
                         ),
                         child: Icon(
-                          isCustomer ? Icons.local_shipping_rounded : Icons.delivery_dining_rounded,
+                          isCustomer
+                              ? Icons.local_shipping_rounded
+                              : Icons.delivery_dining_rounded,
                           color: Colors.white,
                           size: 36.sp,
                         ),
@@ -108,11 +119,12 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                           fontSize: 13.sp,
                           color: const Color(0xFF64748B),
                         ),
+                        textAlign: TextAlign.center,
                       ),
 
                       SizedBox(height: 28.h),
 
-                      // Login / Signup Toggle Tab Bar
+                      // ── Login / Signup Toggle Tab Bar ───────────────────
                       Container(
                         padding: EdgeInsets.all(4.r),
                         decoration: BoxDecoration(
@@ -125,15 +137,21 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                               child: GestureDetector(
                                 onTap: () => controller.toggleTab(true),
                                 child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                                  duration:
+                                      const Duration(milliseconds: 200),
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: 12.h),
                                   decoration: BoxDecoration(
-                                    color: isLogin ? Colors.white : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(12.r),
+                                    color: isLogin
+                                        ? Colors.white
+                                        : Colors.transparent,
+                                    borderRadius:
+                                        BorderRadius.circular(12.r),
                                     boxShadow: isLogin
                                         ? [
                                             BoxShadow(
-                                              color: Colors.black.withValues(alpha: 0.06),
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.06),
                                               blurRadius: 8,
                                               offset: const Offset(0, 2),
                                             ),
@@ -146,7 +164,9 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                                     style: TextStyle(
                                       fontSize: 14.sp,
                                       fontWeight: FontWeight.bold,
-                                      color: isLogin ? themeColor : const Color(0xFF64748B),
+                                      color: isLogin
+                                          ? themeColor
+                                          : const Color(0xFF64748B),
                                     ),
                                   ),
                                 ),
@@ -156,15 +176,21 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                               child: GestureDetector(
                                 onTap: () => controller.toggleTab(false),
                                 child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                                  duration:
+                                      const Duration(milliseconds: 200),
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: 12.h),
                                   decoration: BoxDecoration(
-                                    color: !isLogin ? Colors.white : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(12.r),
+                                    color: !isLogin
+                                        ? Colors.white
+                                        : Colors.transparent,
+                                    borderRadius:
+                                        BorderRadius.circular(12.r),
                                     boxShadow: !isLogin
                                         ? [
                                             BoxShadow(
-                                              color: Colors.black.withValues(alpha: 0.06),
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.06),
                                               blurRadius: 8,
                                               offset: const Offset(0, 2),
                                             ),
@@ -177,7 +203,9 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                                     style: TextStyle(
                                       fontSize: 14.sp,
                                       fontWeight: FontWeight.bold,
-                                      color: !isLogin ? themeColor : const Color(0xFF64748B),
+                                      color: !isLogin
+                                          ? themeColor
+                                          : const Color(0xFF64748B),
                                     ),
                                   ),
                                 ),
@@ -189,34 +217,28 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
 
                       SizedBox(height: 28.h),
 
-                      // Form Fields
+                      // ── Form Fields ─────────────────────────────────────
                       if (isLogin) ...[
-                        // Login Tab Fields
                         _buildInputField(
-                          controller: controller.emailController,
-                          label: 'Email or Phone Number',
-                          hint: 'Enter your email or phone',
-                          icon: Icons.person_outline_rounded,
+                          ctrl: controller.emailController,
+                          label: 'Email Address',
+                          hint: 'Enter your email',
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
                         ),
                         SizedBox(height: 16.h),
-                        _buildInputField(
-                          controller: controller.passwordController,
-                          label: 'Password',
-                          hint: 'Enter your password',
-                          icon: Icons.lock_outline_rounded,
-                          isPassword: true,
-                        ),
+                        _buildPasswordField(
+                            themeColor: themeColor),
                       ] else ...[
-                        // Signup Tab Fields: Name, Number, Email, Password
                         _buildInputField(
-                          controller: controller.nameController,
+                          ctrl: controller.nameController,
                           label: 'Full Name',
                           hint: 'Enter your full name',
                           icon: Icons.person_outline_rounded,
                         ),
                         SizedBox(height: 14.h),
                         _buildInputField(
-                          controller: controller.phoneController,
+                          ctrl: controller.phoneController,
                           label: 'Phone Number',
                           hint: 'Enter your phone number',
                           icon: Icons.phone_android_rounded,
@@ -224,25 +246,20 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                         ),
                         SizedBox(height: 14.h),
                         _buildInputField(
-                          controller: controller.emailController,
+                          ctrl: controller.emailController,
                           label: 'Email Address',
                           hint: 'Enter your email address',
                           icon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
                         ),
                         SizedBox(height: 14.h),
-                        _buildInputField(
-                          controller: controller.passwordController,
-                          label: 'Password',
-                          hint: 'Create a strong password',
-                          icon: Icons.lock_outline_rounded,
-                          isPassword: true,
-                        ),
+                        _buildPasswordField(
+                            themeColor: themeColor),
                       ],
 
                       SizedBox(height: 28.h),
 
-                      // Submit Button
+                      // ── Submit Button ───────────────────────────────────
                       SizedBox(
                         width: double.infinity,
                         height: 52.h,
@@ -254,31 +271,45 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                               borderRadius: BorderRadius.circular(16.r),
                             ),
                           ),
-                          onPressed: controller.submit,
-                          child: Text(
-                            isLogin ? 'Login' : 'Sign Up',
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          onPressed: controller.isLoading.value
+                              ? null
+                              : controller.submit,
+                          child: controller.isLoading.value
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  isLogin ? 'Login' : 'Sign Up',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
 
-                      SizedBox(height: 32.h),
+                      SizedBox(height: 24.h),
 
-                      // Bottom Switch Role Link
+                      // ── Switch Role Link ────────────────────────────────
                       InkWell(
                         onTap: controller.toggleRole,
                         borderRadius: BorderRadius.circular(12.r),
                         child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 12.w, vertical: 8.h),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                isCustomer ? Icons.delivery_dining_rounded : Icons.person_rounded,
+                                isCustomer
+                                    ? Icons.delivery_dining_rounded
+                                    : Icons.person_rounded,
                                 color: themeColor,
                                 size: 20.sp,
                               ),
@@ -286,7 +317,7 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
                               Text(
                                 isCustomer
                                     ? 'Become a Delivery Partner'
-                                    : 'Become a Customer',
+                                    : 'Login as Customer instead',
                                 style: TextStyle(
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.bold,
@@ -310,12 +341,82 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
     });
   }
 
+  // ── Password Field with show/hide ───────────────────────────────────────
+  Widget _buildPasswordField({required Color themeColor}) {
+    return Obx(() => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Password',
+              style: TextStyle(
+                fontSize: 13.sp,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Container(
+              padding:
+                  EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14.r),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lock_outline_rounded,
+                      color: const Color(0xFF64748B), size: 20.sp),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: TextField(
+                      controller: controller.passwordController,
+                      obscureText: !controller.showPassword.value,
+                      decoration: InputDecoration(
+                        hintText: 'Enter your password',
+                        hintStyle: TextStyle(
+                          fontSize: 13.5.sp,
+                          color: const Color(0xFF94A3B8),
+                        ),
+                        border: InputBorder.none,
+                      ),
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: controller.togglePassword,
+                    child: Icon(
+                      controller.showPassword.value
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: const Color(0xFF64748B),
+                      size: 20.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ));
+  }
+
+  // ── Generic Input Field ─────────────────────────────────────────────────
   Widget _buildInputField({
-    required TextEditingController controller,
+    required TextEditingController ctrl,
     required String label,
     required String hint,
     required IconData icon,
-    bool isPassword = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
     return Column(
@@ -331,7 +432,8 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
         ),
         SizedBox(height: 6.h),
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
+          padding:
+              EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14.r),
@@ -346,12 +448,12 @@ class CustomerLoginScreen extends GetView<CustomerLoginController> {
           ),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF64748B), size: 20.sp),
+              Icon(icon,
+                  color: const Color(0xFF64748B), size: 20.sp),
               SizedBox(width: 10.w),
               Expanded(
                 child: TextField(
-                  controller: controller,
-                  obscureText: isPassword,
+                  controller: ctrl,
                   keyboardType: keyboardType,
                   decoration: InputDecoration(
                     hintText: hint,

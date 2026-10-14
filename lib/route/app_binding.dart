@@ -1,11 +1,10 @@
 import 'package:get/get.dart';
 import '../binding.dart';
 import '../ui/auth/splash/splash_screen.dart';
-import '../ui/auth/onboarding/onboarding_screen.dart';
-import '../ui/auth/role/role_screen.dart';
-import '../ui/auth/login/customer_login_screen.dart';
+import '../ui/auth/login/login_screen.dart';
 import '../ui/customer/home/customer_home_screen.dart';
 import '../ui/customer/my_orders/customer_my_orders_screen.dart';
+import '../ui/customer/notifications/notifications_screen.dart';
 import '../ui/partner/home/partner_home_screen.dart';
 import '../ui/partner/my_orders/partner_my_orders_screen.dart';
 import 'app_routes.dart';
@@ -18,21 +17,11 @@ class AppBinding {
       binding: SplashBinding(),
     ),
     GetPage(
-      name: AppRoutes.onboardingScreen,
-      page: () => const OnboardingScreen(),
-      binding: OnboardingBinding(),
-    ),
-    GetPage(
-      name: AppRoutes.roleScreen,
-      page: () => const RoleScreen(),
-      binding: RoleBinding(),
+      name: AppRoutes.login,
+      page: () => const LoginScreen(),
+      binding: LoginBinding(),
     ),
     // Customer Screens
-    GetPage(
-      name: AppRoutes.customerLogin,
-      page: () => const CustomerLoginScreen(),
-      binding: CustomerLoginBinding(),
-    ),
     GetPage(
       name: AppRoutes.customerHome,
       page: () => const CustomerHomeScreen(),
@@ -42,6 +31,11 @@ class AppBinding {
       name: AppRoutes.customerMyOrders,
       page: () => const CustomerMyOrdersScreen(),
       binding: CustomerMyOrdersBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.customerNotifications,
+      page: () => const NotificationsScreen(),
+      binding: CustomerNotificationsBinding(),
     ),
     // Partner Screens
     GetPage(

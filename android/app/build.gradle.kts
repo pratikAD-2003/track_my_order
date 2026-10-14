@@ -3,6 +3,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Firebase / Google Services
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -13,6 +15,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -24,10 +27,11 @@ android {
         applicationId = "com.pratik.track_my_order"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion // Required for Firebase, flutter_local_notifications desugaring
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
     }
 
     buildTypes {
@@ -41,4 +45,24 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Firebase BOM — keeps all Firebase library versions in sync
+    implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
+
+    // Firebase Auth
+    implementation("com.google.firebase:firebase-auth-ktx")
+
+    // Cloud Firestore
+    implementation("com.google.firebase:firebase-firestore-ktx")
+
+    // Firebase Realtime Database
+    implementation("com.google.firebase:firebase-database-ktx")
+
+    // Firebase Cloud Messaging (FCM)
+    implementation("com.google.firebase:firebase-messaging-ktx")
+
+    // Core library desugaring — required by flutter_local_notifications
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

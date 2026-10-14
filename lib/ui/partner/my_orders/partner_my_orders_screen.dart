@@ -84,131 +84,162 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
                     SizedBox(height: 16.h),
 
                     // Filter Chips Bar
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: 16.w),
-                      child: Row(
-                        children: [
-                          _buildFilterChip('All Jobs', isSelected: true),
-                          _buildFilterChip('Active (1)'),
-                          _buildFilterChip('Completed (27)'),
-                          _buildFilterChip('Declined'),
-                        ],
-                      ),
-                    ),
+                    Obx(() {
+                      final current = controller.selectedFilter.value;
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        child: Row(
+                          children: [
+                            _buildFilterChip(
+                              'All Jobs',
+                              isSelected: current == 'All Jobs',
+                              onTap: () => controller.setFilter('All Jobs'),
+                            ),
+                            _buildFilterChip(
+                              'Active (${controller.activeCount})',
+                              isSelected: current == 'Active',
+                              onTap: () => controller.setFilter('Active'),
+                            ),
+                            _buildFilterChip(
+                              'Completed (${controller.completedCount})',
+                              isSelected: current == 'Completed',
+                              onTap: () => controller.setFilter('Completed'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
 
                     SizedBox(height: 14.h),
 
                     // Earnings Summary Card
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.w),
-                      child: Container(
-                        padding: EdgeInsets.all(14.w),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
-                          borderRadius: BorderRadius.circular(16.r),
-                          border: Border.all(color: const Color(0xFFDCFCE7)),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(10.r),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFDCFCE7),
-                                shape: BoxShape.circle,
+                    Obx(() {
+                      final count = controller.completedCount;
+                      final earned = (count * 15.0).toStringAsFixed(2);
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        child: Container(
+                          padding: EdgeInsets.all(14.w),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(16.r),
+                            border: Border.all(color: const Color(0xFFDCFCE7)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(10.r),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFDCFCE7),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.payments_rounded, color: primaryGreen, size: 22.sp),
                               ),
-                              child: Icon(Icons.payments_rounded, color: primaryGreen, size: 22.sp),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Total Earned: \$148.50',
-                                    style: TextStyle(
-                                      fontSize: 15.sp,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryGreen,
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Total Earned: \$$earned',
+                                      style: TextStyle(
+                                        fontSize: 15.sp,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryGreen,
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(height: 2.h),
-                                  Text(
-                                    '28 Deliveries Completed • 4.9 ⭐ Rating',
-                                    style: TextStyle(
-                                      fontSize: 11.5.sp,
-                                      color: const Color(0xFF15803D),
+                                    SizedBox(height: 2.h),
+                                    Text(
+                                      '$count Deliveries Completed • 4.9 ⭐ Rating',
+                                      style: TextStyle(
+                                        fontSize: 11.5.sp,
+                                        color: const Color(0xFF15803D),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
 
                     SizedBox(height: 14.h),
 
                     // List of Partner Deliveries
                     Expanded(
-                      child: ListView(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w),
-                        children: [
-                          _buildPartnerDeliveryCard(
-                            orderId: '#ORD8765',
-                            payout: '\$18.50',
-                            category: 'Food Delivery',
-                            date: 'Today, 09:15 AM',
-                            statusText: 'Picked Up',
-                            statusBg: const Color(0xFFFFEDD5),
-                            statusColor: const Color(0xFFC2410C),
-                            pickup: '12, MG Road, Bhopal',
-                            drop: '21, New Market Rd, Bhopal',
-                            distanceTime: '2.1 km • 8 min ETA',
-                            onTap: () => OrderBottomSheets.showRiderViewOrderDetails(),
-                          ),
-                          _buildPartnerDeliveryCard(
-                            orderId: '#ORD8764',
-                            payout: '\$14.00',
-                            category: 'Food Delivery',
-                            date: 'Today, 08:30 AM',
-                            statusText: 'Delivered',
-                            statusBg: const Color(0xFFDCFCE7),
-                            statusColor: const Color(0xFF15803D),
-                            pickup: '23 Acme Rd, Ogba',
-                            drop: '31 Ishola Bello St, Ojodu',
-                            distanceTime: '5.1 km • Completed',
-                            onTap: () => OrderBottomSheets.showOrderDetailsWithMap(),
-                          ),
-                          _buildPartnerDeliveryCard(
-                            orderId: '#ORD8763',
-                            payout: '\$22.00',
-                            category: 'Grocery',
-                            date: 'Yesterday, 07:12 PM',
-                            statusText: 'Delivered',
-                            statusBg: const Color(0xFFDCFCE7),
-                            statusColor: const Color(0xFF15803D),
-                            pickup: 'Supermarket Central Plaza',
-                            drop: 'Block C, Green Park Housing',
-                            distanceTime: '6.4 km • Completed',
-                            onTap: () => OrderBottomSheets.showOrderDetailsWithMap(),
-                          ),
-                          _buildPartnerDeliveryCard(
-                            orderId: '#ORD8762',
-                            payout: '\$12.50',
-                            category: 'Documents',
-                            date: 'Yesterday, 05:36 PM',
-                            statusText: 'Delivered',
-                            statusBg: const Color(0xFFDCFCE7),
-                            statusColor: const Color(0xFF15803D),
-                            pickup: 'City Express Postal Office',
-                            drop: '14 Commerce Tower',
-                            distanceTime: '3.0 km • Completed',
-                            onTap: () => OrderBottomSheets.showOrderDetailsWithMap(),
-                          ),
-                        ],
-                      ),
+                      child: Obx(() {
+                        if (controller.isLoading.value) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        final jobs = controller.filteredJobs;
+                        if (jobs.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.delivery_dining_outlined, size: 48.sp, color: const Color(0xFF94A3B8)),
+                                SizedBox(height: 10.h),
+                                Text(
+                                  'No deliveries found',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF475569),
+                                  ),
+                                ),
+                                SizedBox(height: 4.h),
+                                Text(
+                                  'Deliveries matching this filter will show here.',
+                                  style: TextStyle(fontSize: 12.sp, color: const Color(0xFF94A3B8)),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          padding: EdgeInsets.symmetric(horizontal: 16.w),
+                          itemCount: jobs.length,
+                          itemBuilder: (context, index) {
+                            final job = jobs[index];
+                            Color statusBg;
+                            Color statusColor;
+                            if (job.isDelivered) {
+                              statusBg = const Color(0xFFDCFCE7);
+                              statusColor = const Color(0xFF15803D);
+                            } else if (job.isPending) {
+                              statusBg = const Color(0xFFFEF3C7);
+                              statusColor = const Color(0xFFD97706);
+                            } else if (job.isAccepted) {
+                              statusBg = const Color(0xFFE0EDFF);
+                              statusColor = const Color(0xFF0F62FE);
+                            } else {
+                              statusBg = const Color(0xFFFFEDD5);
+                              statusColor = const Color(0xFFC2410C);
+                            }
+
+                            return _buildPartnerDeliveryCard(
+                              orderId: job.orderNumber,
+                              payout: '\$15.00',
+                              category: job.itemDescription,
+                              date: '${job.createdAt.day}/${job.createdAt.month}/${job.createdAt.year} at ${job.createdAt.hour.toString().padLeft(2, '0')}:${job.createdAt.minute.toString().padLeft(2, '0')}',
+                              statusText: job.statusDisplay,
+                              statusBg: statusBg,
+                              statusColor: statusColor,
+                              pickup: job.pickupAddress,
+                              drop: job.dropAddress,
+                              distanceTime: job.isDelivered
+                                  ? '2.1 km • Delivered'
+                                  : '2.1 km • ETA ${job.estimatedMinutes} min',
+                              onTap: () => OrderBottomSheets.showRiderViewOrderDetails(job),
+                            );
+                          },
+                        );
+                      }),
                     ),
                   ],
                 ),
@@ -220,25 +251,28 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
     );
   }
 
-  Widget _buildFilterChip(String label, {bool isSelected = false}) {
+  Widget _buildFilterChip(String label, {bool isSelected = false, VoidCallback? onTap}) {
     const primaryGreen = Color(0xFF006837);
 
-    return Container(
-      margin: EdgeInsets.only(right: 8.w),
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: isSelected ? primaryGreen : Colors.white,
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(
-          color: isSelected ? primaryGreen : const Color(0xFFE2E8F0),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: EdgeInsets.only(right: 8.w),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryGreen : Colors.white,
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(
+            color: isSelected ? primaryGreen : const Color(0xFFE2E8F0),
+          ),
         ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12.5.sp,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          color: isSelected ? Colors.white : const Color(0xFF64748B),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5.sp,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : const Color(0xFF64748B),
+          ),
         ),
       ),
     );

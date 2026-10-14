@@ -84,80 +84,124 @@ class CustomerMyOrdersScreen extends GetView<CustomerMyOrdersController> {
                     SizedBox(height: 16.h),
 
                     // Filter Chips Bar
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: 16.w),
-                      child: Row(
-                        children: [
-                          _buildFilterChip('All Orders', isSelected: true),
-                          _buildFilterChip('Active (2)'),
-                          _buildFilterChip('Delivered (10)'),
-                          _buildFilterChip('Cancelled'),
-                        ],
-                      ),
-                    ),
+                    Obx(() {
+                      final current = controller.selectedFilter.value;
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        child: Row(
+                          children: [
+                            _buildFilterChip(
+                              'All Orders',
+                              isSelected: current == 'All Orders',
+                              onTap: () => controller.setFilter('All Orders'),
+                            ),
+                            _buildFilterChip(
+                              'Active (${controller.activeCount})',
+                              isSelected: current == 'Active',
+                              onTap: () => controller.setFilter('Active'),
+                            ),
+                            _buildFilterChip(
+                              'Delivered (${controller.deliveredCount})',
+                              isSelected: current == 'Delivered',
+                              onTap: () => controller.setFilter('Delivered'),
+                            ),
+                            _buildFilterChip(
+                              'Cancelled',
+                              isSelected: current == 'Cancelled',
+                              onTap: () => controller.setFilter('Cancelled'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
 
                     SizedBox(height: 16.h),
 
-                    // List of Customer Orders
                     Expanded(
-                      child: ListView(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w),
-                        children: [
-                          _buildCustomerOrderCard(
-                            orderId: '#ORD5678',
-                            category: 'Food Delivery',
-                            date: 'Today, 10:24 AM',
-                            statusText: 'In Transit',
-                            statusBg: const Color(0xFFE0F2FE),
-                            statusColor: const Color(0xFF0284C7),
-                            pickup: '12, MG Road, Bhopal',
-                            drop: '21, New Market Rd, Bhopal',
-                            riderName: 'Rohit Kumar (Rider)',
-                            eta: 'ETA 12 min • 2.8 km',
-                            onTap: () => OrderBottomSheets.showCustomerViewOrderDetails(),
-                          ),
-                          _buildCustomerOrderCard(
-                            orderId: '#ORD5677',
-                            category: 'Documents',
-                            date: 'Today, 09:15 AM',
-                            statusText: 'Out for Delivery',
-                            statusBg: const Color(0xFFE0F2FE),
-                            statusColor: const Color(0xFF0369A1),
-                            pickup: 'Acme Rd, Ikeja',
-                            drop: 'Ishola Bello St, Ojodu',
-                            riderName: 'Amit Kumar (Rider)',
-                            eta: 'ETA 25 min • 4.1 km',
-                            onTap: () => OrderBottomSheets.showCustomerViewOrderDetails(),
-                          ),
-                          _buildCustomerOrderCard(
-                            orderId: '#ORD5676',
-                            category: 'Grocery',
-                            date: 'Yesterday, 06:32 PM',
-                            statusText: 'Delivered',
-                            statusBg: const Color(0xFFDCFCE7),
-                            statusColor: const Color(0xFF15803D),
-                            pickup: 'Supermarket Plaza',
-                            drop: 'Green Valley Apartments',
-                            riderName: 'Brooklyn Simmons',
-                            eta: 'Delivered at 7:10 PM',
-                            onTap: () => OrderBottomSheets.showOrderDetailsWithMap(),
-                          ),
-                          _buildCustomerOrderCard(
-                            orderId: '#ORD5675',
-                            category: 'Electronics',
-                            date: 'Yesterday, 04:18 PM',
-                            statusText: 'Delivered',
-                            statusBg: const Color(0xFFDCFCE7),
-                            statusColor: const Color(0xFF15803D),
-                            pickup: 'Tech Zone Store',
-                            drop: 'Sunset Boulevard',
-                            riderName: 'Adams Taylor',
-                            eta: 'Delivered at 5:02 PM',
-                            onTap: () => OrderBottomSheets.showOrderDetailsWithMap(),
-                          ),
-                        ],
-                      ),
+                      child: Obx(() {
+                        if (controller.isLoading.value) {
+                          return const Center(child: CircularProgressIndicator(color: primaryBlue));
+                        }
+
+                        final orders = controller.filteredOrders;
+                        return RefreshIndicator(
+                          color: primaryBlue,
+                          backgroundColor: Colors.white,
+                          onRefresh: controller.refreshOrders,
+                          child: orders.isEmpty
+                              ? ListView(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  children: [
+                                    SizedBox(height: 100.h),
+                                    Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.inbox_outlined, size: 48.sp, color: const Color(0xFF94A3B8)),
+                                          SizedBox(height: 10.h),
+                                          Text(
+                                            'No orders found',
+                                            style: TextStyle(
+                                              fontSize: 16.sp,
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFF475569),
+                                            ),
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Text(
+                                            'Orders in this category will appear here.\nPull down to refresh.',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(fontSize: 12.sp, color: const Color(0xFF94A3B8)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : ListView.builder(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                                  itemCount: orders.length,
+                                  itemBuilder: (context, index) {
+                                    final order = orders[index];
+                                    Color statusBg;
+                                    Color statusColor;
+                            if (order.isDelivered) {
+                              statusBg = const Color(0xFFDCFCE7);
+                              statusColor = const Color(0xFF15803D);
+                            } else if (order.isPending) {
+                              statusBg = const Color(0xFFFEF3C7);
+                              statusColor = const Color(0xFFD97706);
+                            } else if (order.isAccepted) {
+                              statusBg = const Color(0xFFE0EDFF);
+                              statusColor = primaryBlue;
+                            } else {
+                              statusBg = const Color(0xFFE0F2FE);
+                              statusColor = const Color(0xFF0284C7);
+                            }
+
+                            return _buildCustomerOrderCard(
+                              orderId: order.orderNumber,
+                              category: order.itemDescription,
+                              date: '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year} at ${order.createdAt.hour.toString().padLeft(2, '0')}:${order.createdAt.minute.toString().padLeft(2, '0')}',
+                              statusText: order.statusDisplay,
+                              statusBg: statusBg,
+                              statusColor: statusColor,
+                              pickup: order.pickupAddress,
+                              drop: order.dropAddress,
+                              riderName: order.partnerName != null
+                                  ? '${order.partnerName} (Rider)'
+                                  : 'Looking for rider...',
+                              eta: order.isDelivered
+                                  ? 'Delivered'
+                                  : 'ETA ${order.estimatedMinutes} min',
+                              onTap: () => OrderBottomSheets.showCustomerViewOrderDetails(order),
+                            );
+                          },
+                        ),
+                      );
+                    }),
                     ),
                   ],
                 ),
@@ -169,25 +213,28 @@ class CustomerMyOrdersScreen extends GetView<CustomerMyOrdersController> {
     );
   }
 
-  Widget _buildFilterChip(String label, {bool isSelected = false}) {
+  Widget _buildFilterChip(String label, {bool isSelected = false, VoidCallback? onTap}) {
     const primaryBlue = Color(0xFF0F62FE);
 
-    return Container(
-      margin: EdgeInsets.only(right: 8.w),
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: isSelected ? primaryBlue : Colors.white,
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(
-          color: isSelected ? primaryBlue : const Color(0xFFE2E8F0),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: EdgeInsets.only(right: 8.w),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryBlue : Colors.white,
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(
+            color: isSelected ? primaryBlue : const Color(0xFFE2E8F0),
+          ),
         ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12.5.sp,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          color: isSelected ? Colors.white : const Color(0xFF64748B),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5.sp,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : const Color(0xFF64748B),
+          ),
         ),
       ),
     );
