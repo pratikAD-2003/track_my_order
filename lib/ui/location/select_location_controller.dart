@@ -26,6 +26,8 @@ class SelectLocationController extends GetxController {
   final predictions = <PlacePrediction>[].obs;
 
   Timer? _debounceTimer;
+  int _searchSequenceId = 0;
+  String? _activeSessionToken;
 
   void initFromParams({
     String? initialPickup,
@@ -49,7 +51,6 @@ class SelectLocationController extends GetxController {
       });
     }
 
-    // Initially auto-fetch device current location for pickup if empty
     if (pickupLocation.value == null && pickupTextController.text.isEmpty) {
       fetchCurrentLocationForPickup();
     }
@@ -59,7 +60,6 @@ class SelectLocationController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Check if initial locations were passed in arguments
     final args = Get.arguments;
     if (args is Map) {
       if (args['pickup'] is PlaceLocation) {
@@ -74,7 +74,7 @@ class SelectLocationController extends GetxController {
       if (args['drop'] is PlaceLocation) {
         setDrop(args['drop'] as PlaceLocation);
       } else if (args['dropAddress'] is String) {
-        dropTextController.text = args['dropAddress'];
+        dropTextController.text = args['dropAddress'] as String;
       }
 
       if (args['focusDrop'] == true) {
@@ -88,6 +88,7 @@ class SelectLocationController extends GetxController {
     pickupFocusNode.addListener(() {
       if (pickupFocusNode.hasFocus) {
         isPickupFocused.value = true;
+        _activeSessionToken = _placesService.getSessionToken();
         onSearchChanged(pickupTextController.text);
       }
     });
@@ -95,11 +96,11 @@ class SelectLocationController extends GetxController {
     dropFocusNode.addListener(() {
       if (dropFocusNode.hasFocus) {
         isPickupFocused.value = false;
+        _activeSessionToken = _placesService.getSessionToken();
         onSearchChanged(dropTextController.text);
       }
     });
 
-    // Auto-fetch current location for pickup if empty
     if (pickupLocation.value == null && pickupTextController.text.isEmpty) {
       fetchCurrentLocationForPickup();
     }
@@ -118,31 +119,64 @@ class SelectLocationController extends GetxController {
   void onSearchChanged(String query) {
     _debounceTimer?.cancel();
     final cleanQuery = query.trim();
+
+    // Invalidate coordinates if user manually types/edits text
+    if (isPickupFocused.value) {
+      if (pickupLocation.value != null &&
+          pickupLocation.value!.title != cleanQuery &&
+          pickupLocation.value!.address != cleanQuery) {
+        pickupLocation.value = null;
+      }
+    } else {
+      if (dropLocation.value != null &&
+          dropLocation.value!.title != cleanQuery &&
+          dropLocation.value!.address != cleanQuery) {
+        dropLocation.value = null;
+      }
+    }
+
     if (cleanQuery.isEmpty) {
       predictions.clear();
       isSearching.value = false;
       return;
     }
 
+    _activeSessionToken ??= _placesService.getSessionToken();
+
     isSearching.value = true;
-    _debounceTimer = Timer(const Duration(milliseconds: 250), () async {
-      final results = await _placesService.searchAutocomplete(cleanQuery);
-      predictions.assignAll(results);
-      isSearching.value = false;
+    final currentSeq = ++_searchSequenceId;
+
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      final results = await _placesService.searchAutocomplete(
+        cleanQuery,
+        sessionToken: _activeSessionToken,
+      );
+      if (currentSeq == _searchSequenceId) {
+        predictions.assignAll(results);
+        isSearching.value = false;
+      }
     });
   }
 
   Future<void> selectPrediction(PlacePrediction pred) async {
+    debugPrint('[SelectLocationController] selectPrediction called for: ${pred.mainText}, isPickupFocused: ${isPickupFocused.value}');
     isSearching.value = true;
+    _debounceTimer?.cancel();
+
     PlaceLocation? loc = await _placesService.getPlaceDetails(
       pred.placeId,
       defaultTitle: pred.mainText,
       prediction: pred,
+      sessionToken: _activeSessionToken,
     );
     if (loc == null && pred.fullText.isNotEmpty) {
       loc = await _placesService.geocodeAddress(pred.fullText);
     }
     isSearching.value = false;
+
+    // Reset session token after completion of selection
+    _placesService.resetSessionToken();
+    _activeSessionToken = null;
 
     final finalLoc = loc ??
         PlaceLocation(
@@ -154,6 +188,7 @@ class SelectLocationController extends GetxController {
         );
 
     if (isPickupFocused.value) {
+      debugPrint('[SelectLocationController] Setting Pickup location: ${finalLoc.title}');
       setPickup(finalLoc);
       predictions.clear();
       if (dropLocation.value == null && dropTextController.text.isEmpty) {
@@ -162,6 +197,7 @@ class SelectLocationController extends GetxController {
         pickupFocusNode.unfocus();
       }
     } else {
+      debugPrint('[SelectLocationController] Setting Drop location: ${finalLoc.title}');
       setDrop(finalLoc);
       predictions.clear();
       dropFocusNode.unfocus();
@@ -171,17 +207,21 @@ class SelectLocationController extends GetxController {
   void setPickup(PlaceLocation loc) {
     pickupLocation.value = loc;
     pickupTextController.text = loc.title.isNotEmpty ? loc.title : loc.address;
+    debugPrint('[SelectLocationController] pickupLocation set to: ${loc.title} (${loc.latitude}, ${loc.longitude})');
   }
 
   void setDrop(PlaceLocation loc) {
     dropLocation.value = loc;
     dropTextController.text = loc.title.isNotEmpty ? loc.title : loc.address;
+    debugPrint('[SelectLocationController] dropLocation set to: ${loc.title} (${loc.latitude}, ${loc.longitude})');
   }
 
   void clearPickup() {
     pickupLocation.value = null;
     pickupTextController.clear();
     predictions.clear();
+    isPickupFocused.value = true;
+    _activeSessionToken = _placesService.getSessionToken();
     pickupFocusNode.requestFocus();
   }
 
@@ -189,6 +229,8 @@ class SelectLocationController extends GetxController {
     dropLocation.value = null;
     dropTextController.clear();
     predictions.clear();
+    isPickupFocused.value = false;
+    _activeSessionToken = _placesService.getSessionToken();
     dropFocusNode.requestFocus();
   }
 
@@ -204,11 +246,13 @@ class SelectLocationController extends GetxController {
   }
 
   Future<void> fetchCurrentLocationForPickup() async {
+    if (pickupLocation.value != null || pickupTextController.text.isNotEmpty) return;
+
     isFetchingGps.value = true;
     final cur = await _placesService.getCurrentLocation();
     isFetchingGps.value = false;
 
-    if (cur != null) {
+    if (cur != null && pickupLocation.value == null && pickupTextController.text.isEmpty) {
       setPickup(cur);
     }
   }

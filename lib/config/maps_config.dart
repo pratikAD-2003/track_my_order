@@ -2,7 +2,7 @@
 class MapsConfig {
   /// Google Cloud API key with Maps SDK for Android & iOS, Places API (New),
   /// and Routes API enabled.
-  static String apiKey = 'AIzaSyCZSVob1cZVp0tJNqI8tbVf150kUZ8_3fs';
+  static String apiKey = 'AIzaSyDNRF-Lwuzr8WvI7Kz7H-KFXoV1H9kn5Pg';
 
   /// Default fallback location (e.g. New Delhi / Bhopal) if GPS is disabled
   static const double defaultLatitude = 23.2599;

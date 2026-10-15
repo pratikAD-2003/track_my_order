@@ -31,16 +31,39 @@ class PlacesService {
 
   final Geocoding _geocoding = Geocoding();
 
-  /// Search places with STRICT LOCAL RESTRICTION (Nearby current city/state):
-  /// 1. Google Places Text Search (New) with strict `locationRestriction` (50km radius circle)
-  /// 2. Google Places Autocomplete (New) with strict `locationRestriction`
-  /// 3. OpenStreetMap Nominatim with strict `viewbox` & `bounded=1`
-  /// 4. Local Geocoding Package fallback
-  Future<List<PlacePrediction>> searchAutocomplete(String query) async {
+  String? _currentSessionToken;
+
+  /// Generates or retrieves a session token for session management.
+  String getSessionToken() {
+    _currentSessionToken ??= '${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}';
+    return _currentSessionToken!;
+  }
+
+  /// Resets the session token.
+  void resetSessionToken() {
+    _currentSessionToken = null;
+  }
+
+  String _cleanSecondaryText(String secondary) {
+    var s = secondary.trim();
+    if (s.endsWith(', India') || s.endsWith(' India')) {
+      s = s.replaceAll(RegExp(r',\s*India$'), '').trim();
+    }
+    if (s.contains(',')) {
+      final parts = s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      if (parts.length > 2) {
+        s = parts.take(2).join(', ');
+      }
+    }
+    return s;
+  }
+
+  /// Search places using Google Places Autocomplete (New) and Text Search (New) with session tokens,
+  /// 20km location bias, and India region restriction.
+  Future<List<PlacePrediction>> searchAutocomplete(String query, {String? sessionToken}) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
 
-    // Get current GPS position for strict local restriction
     double centerLat = MapsConfig.defaultLatitude;
     double centerLng = MapsConfig.defaultLongitude;
     try {
@@ -51,9 +74,93 @@ class PlacesService {
       }
     } catch (_) {}
 
-    // 1. Try Google Places Text Search API (New) - STRICT `locationRestriction` (50km circle)
+    final token = sessionToken ?? getSessionToken();
+
+    // 1. Try Google Places Autocomplete API (New)
+    try {
+      final url = Uri.parse('https://places.googleapis.com/v1/places:autocomplete');
+      final bodyMap = {
+        'input': cleanQuery,
+        'includedRegionCodes': ['in'],
+        'locationBias': {
+          'circle': {
+            'center': {
+              'latitude': centerLat,
+              'longitude': centerLng,
+            },
+            'radius': 20000.0,
+          },
+        },
+        'includeQueryPredictions': false,
+        'sessionToken': token,
+      };
+
+      debugPrint('[PlacesService] Requesting Autocomplete (New) for "$cleanQuery"');
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': MapsConfig.apiKey,
+            },
+            body: jsonEncode(bodyMap),
+          )
+          .timeout(const Duration(seconds: 4));
+
+      debugPrint('[PlacesService] Autocomplete (New) status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final suggestions = data['suggestions'] as List<dynamic>? ?? [];
+
+        final results = <PlacePrediction>[];
+        for (final item in suggestions) {
+          final pred = item['placePrediction'];
+          if (pred != null) {
+            final placeId = pred['placeId'] ?? pred['place']?.toString().replaceFirst('places/', '') ?? '';
+            final structured = pred['structuredFormat'];
+            final fullText = pred['text']?['text']?.toString() ?? '';
+
+            String mainText = '';
+            String secondaryText = '';
+
+            if (structured != null) {
+              mainText = structured['mainText']?['text']?.toString() ?? '';
+              secondaryText = _cleanSecondaryText(structured['secondaryText']?['text']?.toString() ?? '');
+            }
+
+            if (mainText.isEmpty && fullText.isNotEmpty) {
+              if (fullText.contains(',')) {
+                final parts = fullText.split(',');
+                mainText = parts.first.trim();
+                secondaryText = _cleanSecondaryText(parts.skip(1).join(', '));
+              } else {
+                mainText = fullText;
+              }
+            }
+
+            if (mainText.isNotEmpty) {
+              results.add(PlacePrediction(
+                placeId: placeId,
+                mainText: mainText,
+                secondaryText: secondaryText,
+                fullText: fullText.isNotEmpty ? fullText : '$mainText, $secondaryText',
+              ));
+            }
+          }
+        }
+        if (results.isNotEmpty) return results;
+      } else {
+        debugPrint('[PlacesService] Autocomplete (New) error body: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('[PlacesService] Google Places Autocomplete (New) exception: $e');
+    }
+
+    // 2. Try Google Places Text Search API (New) as fallback
     try {
       final textSearchUrl = Uri.parse('https://places.googleapis.com/v1/places:searchText');
+      debugPrint('[PlacesService] Requesting Text Search (New) for "$cleanQuery"');
       final response = await http
           .post(
             textSearchUrl,
@@ -65,18 +172,20 @@ class PlacesService {
             body: jsonEncode({
               'textQuery': cleanQuery,
               'includedRegionCodes': ['in'],
-              'locationRestriction': {
+              'locationBias': {
                 'circle': {
                   'center': {
                     'latitude': centerLat,
                     'longitude': centerLng,
                   },
-                  'radius': 50000.0, // 50km strict radius around current user location
+                  'radius': 20000.0,
                 },
               },
             }),
           )
           .timeout(const Duration(seconds: 4));
+
+      debugPrint('[PlacesService] Text Search (New) status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -96,7 +205,7 @@ class PlacesService {
             if (address.contains(',')) {
               final parts = address.split(',');
               mainText = parts.first.trim();
-              secondaryText = parts.skip(1).join(', ').trim();
+              secondaryText = _cleanSecondaryText(parts.skip(1).join(', '));
             }
 
             results.add(PlacePrediction(
@@ -112,133 +221,19 @@ class PlacesService {
         }
       }
     } catch (e) {
-      debugPrint('[PlacesService] Google Places Text Search (New) warning: $e');
+      debugPrint('[PlacesService] Google Places Text Search (New) exception: $e');
     }
 
-    // 2. Try Google Places Autocomplete API (New) - STRICT `locationRestriction`
+    // 3. Fallback to Flutter geocoding package
     try {
-      final url = Uri.parse('https://places.googleapis.com/v1/places:autocomplete');
-      final response = await http
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Goog-Api-Key': MapsConfig.apiKey,
-            },
-            body: jsonEncode({
-              'input': cleanQuery,
-              'includedRegionCodes': ['in'],
-              'locationRestriction': {
-                'circle': {
-                  'center': {
-                    'latitude': centerLat,
-                    'longitude': centerLng,
-                  },
-                  'radius': 50000.0,
-                },
-              },
-            }),
-          )
-          .timeout(const Duration(seconds: 4));
+      return await _fallbackGeocodingSearch(cleanQuery);
+    } catch (_) {}
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final suggestions = data['suggestions'] as List<dynamic>? ?? [];
-
-        final results = <PlacePrediction>[];
-        for (final item in suggestions) {
-          final pred = item['placePrediction'];
-          if (pred != null) {
-            final placeId = pred['placeId'] ?? '';
-            final structured = pred['structuredFormat'];
-            final main = structured?['mainText']?['text'] ?? pred['text']?['text'] ?? '';
-            final secondary = structured?['secondaryText']?['text'] ?? '';
-            final full = pred['text']?['text'] ?? '$main, $secondary';
-
-            results.add(PlacePrediction(
-              placeId: placeId,
-              mainText: main,
-              secondaryText: secondary,
-              fullText: full,
-            ));
-          }
-        }
-        if (results.isNotEmpty) return results;
-      }
-    } catch (e) {
-      debugPrint('[PlacesService] Google Places (New) autocomplete warning: $e');
-    }
-
-    // 3. Try OpenStreetMap Nominatim with strict viewbox & bounded=1 (local area only)
-    try {
-      // Create bounding box approx 0.5 degrees around centerLat, centerLng (~50km)
-      final minLon = centerLng - 0.45;
-      final maxLon = centerLng + 0.45;
-      final minLat = centerLat - 0.45;
-      final maxLat = centerLat + 0.45;
-
-      final osmUrl = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(cleanQuery)}&format=json&addressdetails=1&countrycodes=in&viewbox=$minLon,$minLat,$maxLon,$maxLat&bounded=1&limit=6',
-      );
-      final response = await http.get(
-        osmUrl,
-        headers: {
-          'User-Agent': 'TrackMyOrderApp/1.0 (com.pratik.track_my_order)',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-      ).timeout(const Duration(seconds: 4));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is List && data.isNotEmpty) {
-          final results = <PlacePrediction>[];
-          for (final item in data) {
-            if (item is Map) {
-              final displayName = item['display_name']?.toString() ?? '';
-              final name = item['name']?.toString() ?? '';
-              final address = item['address'];
-              final lat = double.tryParse(item['lat']?.toString() ?? '');
-              final lon = double.tryParse(item['lon']?.toString() ?? '');
-
-              String mainText = name.isNotEmpty ? name : displayName.split(',').first;
-              String secondaryText = '';
-              if (address is Map) {
-                final parts = [
-                  if (address['suburb'] != null) address['suburb'],
-                  if (address['city'] != null) address['city'],
-                  if (address['town'] != null) address['town'],
-                  if (address['state'] != null) address['state'],
-                ];
-                secondaryText = parts.take(2).join(', ');
-              }
-              if (secondaryText.isEmpty && displayName.contains(',')) {
-                secondaryText = displayName.substring(displayName.indexOf(',') + 1).trim();
-              }
-
-              results.add(PlacePrediction(
-                placeId: 'osm_${item['place_id']}',
-                mainText: mainText,
-                secondaryText: secondaryText,
-                fullText: displayName,
-                lat: lat,
-                lng: lon,
-              ));
-            }
-          }
-          if (results.isNotEmpty) return results;
-        }
-      }
-    } catch (e) {
-      debugPrint('[PlacesService] OpenStreetMap Nominatim warning: $e');
-    }
-
-    // 4. Fallback: Use geocoding Flutter package
-    return _fallbackGeocodingSearch(cleanQuery);
+    return [];
   }
 
-  /// Fetches place coordinates and formatted address by Place ID via Google Places API (New) or OpenStreetMap.
-  Future<PlaceLocation?> getPlaceDetails(String placeId, {String? defaultTitle, PlacePrediction? prediction}) async {
-    // Check prediction lat/lng first
+  /// Fetches place coordinates and formatted address by Place ID via Google Places API (New) Place Details.
+  Future<PlaceLocation?> getPlaceDetails(String placeId, {String? defaultTitle, PlacePrediction? prediction, String? sessionToken}) async {
     if (prediction != null && prediction.lat != null && prediction.lng != null) {
       return PlaceLocation(
         title: prediction.mainText,
@@ -249,7 +244,6 @@ class PlacesService {
       );
     }
 
-    // 1. If generated from fallback geocoding search
     if (placeId.startsWith('geo_')) {
       final parts = placeId.replaceFirst('geo_', '').split('_');
       if (parts.length >= 2) {
@@ -265,9 +259,15 @@ class PlacesService {
       }
     }
 
-    // 2. Google Places API (New) details
-    final url = Uri.parse('https://places.googleapis.com/v1/places/$placeId');
+    // Google Places Place Details (New)
     try {
+      var urlStr = 'https://places.googleapis.com/v1/places/$placeId';
+      final token = sessionToken ?? _currentSessionToken;
+      if (token != null && token.isNotEmpty) {
+        urlStr += '?sessionToken=$token';
+      }
+      final url = Uri.parse(urlStr);
+      debugPrint('[PlacesService] Fetching Place Details (New) for $placeId');
       final response = await http.get(
         url,
         headers: {
@@ -282,22 +282,24 @@ class PlacesService {
         final title = data['displayName']?['text'] ?? defaultTitle ?? 'Selected Location';
         final formattedAddress = data['formattedAddress'] ?? title;
         final loc = data['location'];
-        final lat = (loc?['latitude'] as num?)?.toDouble() ?? MapsConfig.defaultLatitude;
-        final lng = (loc?['longitude'] as num?)?.toDouble() ?? MapsConfig.defaultLongitude;
+        final lat = (loc?['latitude'] as num?)?.toDouble();
+        final lng = (loc?['longitude'] as num?)?.toDouble();
 
-        return PlaceLocation(
-          title: title,
-          address: formattedAddress,
-          latitude: lat,
-          longitude: lng,
-          placeId: placeId,
-        );
+        if (lat != null && lng != null) {
+          return PlaceLocation(
+            title: title,
+            address: formattedAddress,
+            latitude: lat,
+            longitude: lng,
+            placeId: placeId,
+          );
+        }
       }
     } catch (e) {
-      debugPrint('[PlacesService] Place details exception: $e');
+      debugPrint('[PlacesService] Place Details (New) exception: $e');
     }
 
-    // 3. Fallback: Geocode title or defaultTitle
+    // Fallback: Geocode title or defaultTitle
     if (defaultTitle != null && defaultTitle.isNotEmpty) {
       return await geocodeAddress(defaultTitle);
     }
@@ -327,7 +329,33 @@ class PlacesService {
   }
 
   /// Reverse geocodes Lat/Lng coordinates into a human-readable PlaceLocation
-  Future<PlaceLocation> reverseGeocode(double lat, double lng) async {
+  Future<PlaceLocation?> reverseGeocode(double lat, double lng) async {
+    try {
+      // 1. Try Google Geocoding API for reverse geocoding
+      final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/geocode/json?latlng=$lat,$lng&key=${MapsConfig.apiKey}',
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final results = data['results'] as List<dynamic>? ?? [];
+        if (results.isNotEmpty) {
+          final first = results.first;
+          final formattedAddress = first['formatted_address']?.toString() ?? '$lat, $lng';
+          String title = formattedAddress.split(',').first.trim();
+          return PlaceLocation(
+            title: title,
+            address: formattedAddress,
+            latitude: lat,
+            longitude: lng,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[PlacesService] Google reverse geocode exception: $e');
+    }
+
+    // 2. Fallback to Flutter geocoding package
     try {
       final placemarks = await _geocoding.placemarkFromCoordinates(lat, lng).timeout(
         const Duration(seconds: 5),
@@ -366,12 +394,7 @@ class PlacesService {
       debugPrint('[PlacesService] Reverse geocode error: $e');
     }
 
-    return PlaceLocation(
-      title: 'Current Location',
-      address: MapsConfig.defaultCity,
-      latitude: lat,
-      longitude: lng,
-    );
+    return null;
   }
 
   /// Fetches current device GPS location and converts it to a readable PlaceLocation
@@ -389,7 +412,7 @@ class PlacesService {
 
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
         debugPrint('[PlacesService] Location permission not granted');
-        return await reverseGeocode(MapsConfig.defaultLatitude, MapsConfig.defaultLongitude);
+        return null;
       }
 
       Position? position = await Geolocator.getLastKnownPosition();
@@ -403,23 +426,33 @@ class PlacesService {
       return await reverseGeocode(position.latitude, position.longitude);
     } catch (e) {
       debugPrint('[PlacesService] Error fetching current location: $e');
-      return await reverseGeocode(MapsConfig.defaultLatitude, MapsConfig.defaultLongitude);
+      return null;
     }
   }
 
-  /// Fallback search using Flutter's native `geocoding` package
+  /// Fallback search using Flutter's native `geocoding` package with city context
   Future<List<PlacePrediction>> _fallbackGeocodingSearch(String query) async {
+    final clean = query.trim();
+    List<Location> locations = [];
     try {
-      final locations = await _geocoding.locationFromAddress(query).timeout(const Duration(seconds: 4));
-      final predictions = <PlacePrediction>[];
+      locations = await _geocoding.locationFromAddress(clean).timeout(const Duration(seconds: 3));
+    } catch (_) {}
 
+    if (locations.isEmpty && !clean.toLowerCase().contains('bhopal')) {
+      try {
+        locations = await _geocoding.locationFromAddress('$clean, Bhopal, India').timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    }
+
+    try {
+      final predictions = <PlacePrediction>[];
       for (int i = 0; i < locations.length && i < 5; i++) {
         final loc = locations[i];
         final marks = await _geocoding.placemarkFromCoordinates(loc.latitude, loc.longitude);
         if (marks.isNotEmpty) {
           final p = marks.first;
-          final main = p.name ?? p.subLocality ?? query;
-          final sec = '${p.locality ?? ''}, ${p.administrativeArea ?? ''}'.trim();
+          final main = p.name ?? p.subLocality ?? clean;
+          final sec = _cleanSecondaryText('${p.locality ?? ''}, ${p.administrativeArea ?? ''}');
           predictions.add(PlacePrediction(
             placeId: 'geo_${loc.latitude}_${loc.longitude}',
             mainText: main,
