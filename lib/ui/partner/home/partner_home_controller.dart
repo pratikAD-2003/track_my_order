@@ -32,6 +32,7 @@ class PartnerHomeController extends GetxController {
   StreamSubscription<OrderModel?>? _activeOrderSub;
   StreamSubscription<List<OrderModel>>? _availableOrdersSub;
   StreamSubscription<List<OrderModel>>? _recentDeliveriesSub;
+  StreamSubscription<Position>? _positionStreamSub;
   Timer? _gpsTimer;
 
   @override
@@ -45,6 +46,7 @@ class PartnerHomeController extends GetxController {
     _activeOrderSub?.cancel();
     _availableOrdersSub?.cancel();
     _recentDeliveriesSub?.cancel();
+    _positionStreamSub?.cancel();
     _gpsTimer?.cancel();
     super.onClose();
   }
@@ -132,58 +134,97 @@ class PartnerHomeController extends GetxController {
 
   void _startGpsReporting(String partnerUid) {
     _gpsTimer?.cancel();
+    _positionStreamSub?.cancel();
+
+    // 1. Periodic timer every 4 seconds
     _gpsTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
-      if (isOnline.value || activeOrder.value != null) {
-        try {
-          bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-          if (!serviceEnabled) return;
-
-          LocationPermission permission = await Geolocator.checkPermission();
-          if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-            return;
-          }
-
-          final pos = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-          );
-          await _orderService.updatePartnerLocation(
-            partnerId: partnerUid,
-            lat: pos.latitude,
-            lng: pos.longitude,
-          );
-
-          // ── Live ETA calculation & update based on rider current position ──
-          final currentActiveOrder = activeOrder.value;
-          if (currentActiveOrder != null && currentActiveOrder.isActive) {
-            final targetLat = currentActiveOrder.isAccepted
-                ? currentActiveOrder.pickupLat
-                : currentActiveOrder.dropLat;
-            final targetLng = currentActiveOrder.isAccepted
-                ? currentActiveOrder.pickupLng
-                : currentActiveOrder.dropLng;
-
-            final routeInfo = await RoutesService().computeRoute(
-              originLat: pos.latitude,
-              originLng: pos.longitude,
-              destLat: targetLat,
-              destLng: targetLng,
-            );
-
-            if (routeInfo.durationMinutes != currentActiveOrder.estimatedMinutes) {
-              await _orderService.updateOrderEstimatedMinutes(
-                orderId: currentActiveOrder.id,
-                estimatedMinutes: routeInfo.durationMinutes,
-              );
-              activeOrder.value = currentActiveOrder.copyWith(
-                estimatedMinutes: routeInfo.durationMinutes,
-              );
-            }
-          }
-        } catch (e) {
-          debugPrint('[PartnerHomeController] GPS reporting / ETA update error: $e');
-        }
-      }
+      await _reportCurrentPosition(partnerUid);
     });
+
+    // 2. Geolocator background position stream with Android Foreground Service notification config
+    try {
+      _positionStreamSub = Geolocator.getPositionStream(
+        locationSettings: AndroidSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+          forceLocationManager: true,
+          foregroundNotificationConfig: const ForegroundNotificationConfig(
+            notificationTitle: 'Delivery Active 🛵',
+            notificationText: 'Live location sharing is running in the background',
+            notificationIcon: AndroidResource(name: 'ic_launcher'),
+            enableWakeLock: true,
+          ),
+        ),
+      ).listen(
+        (pos) async {
+          if (isOnline.value || activeOrder.value != null) {
+            await _orderService.updatePartnerLocation(
+              partnerId: partnerUid,
+              lat: pos.latitude,
+              lng: pos.longitude,
+            );
+          }
+        },
+        onError: (e) {
+          debugPrint('[PartnerHomeController] Position stream error: $e');
+        },
+      );
+    } catch (e) {
+      debugPrint('[PartnerHomeController] Error starting position stream: $e');
+    }
+  }
+
+  Future<void> _reportCurrentPosition(String partnerUid) async {
+    if (isOnline.value || activeOrder.value != null) {
+      try {
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) return;
+
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+          return;
+        }
+
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        );
+        await _orderService.updatePartnerLocation(
+          partnerId: partnerUid,
+          lat: pos.latitude,
+          lng: pos.longitude,
+        );
+
+        // ── Live ETA calculation & update based on rider current position ──
+        final currentActiveOrder = activeOrder.value;
+        if (currentActiveOrder != null && currentActiveOrder.isActive) {
+          final targetLat = currentActiveOrder.isAccepted
+              ? currentActiveOrder.pickupLat
+              : currentActiveOrder.dropLat;
+          final targetLng = currentActiveOrder.isAccepted
+              ? currentActiveOrder.pickupLng
+              : currentActiveOrder.dropLng;
+
+          final routeInfo = await RoutesService().computeRoute(
+            originLat: pos.latitude,
+            originLng: pos.longitude,
+            destLat: targetLat,
+            destLng: targetLng,
+          );
+
+          if (routeInfo.durationMinutes != currentActiveOrder.estimatedMinutes) {
+            await _orderService.updateOrderEstimatedMinutes(
+              orderId: currentActiveOrder.id,
+              estimatedMinutes: routeInfo.durationMinutes,
+            );
+            activeOrder.value = currentActiveOrder.copyWith(
+              estimatedMinutes: routeInfo.durationMinutes,
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('[PartnerHomeController] GPS reporting / ETA update error: $e');
+      }
+    }
   }
 
   /// Forces immediate reload of all orders

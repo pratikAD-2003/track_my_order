@@ -9,6 +9,7 @@ import '../models/order_model.dart';
 import '../models/user_model.dart';
 import '../service/notification_service.dart';
 import '../service/routes_service.dart';
+import '../service/shared_pref_service.dart';
 
 class OrderService {
   static final OrderService _instance = OrderService._internal();
@@ -792,27 +793,73 @@ class OrderService {
     }
   }
 
-  /// Updates the delivery partner's live GPS coordinates in RTDB
+  /// Updates the delivery partner's live GPS coordinates in RTDB, with offline caching and auto-syncing upon reconnect.
   Future<void> updatePartnerLocation({
     required String partnerId,
     required double lat,
     required double lng,
   }) async {
+    final locationData = {
+      'lat': lat,
+      'lng': lng,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    };
+
     try {
+      // 1. First, attempt to sync any offline queued locations
+      await _syncOfflineLocations(partnerId);
+
+      // 2. Push current location
       final client = HttpClient();
       final url = Uri.parse('$_rtdbBaseUrl/partner_locations/$partnerId.json');
       final req = await client.putUrl(url).timeout(const Duration(seconds: 4));
       req.headers.contentType = ContentType.json;
-      req.write(jsonEncode({
-        'lat': lat,
-        'lng': lng,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      }));
+      req.write(jsonEncode(locationData));
       final resp = await req.close().timeout(const Duration(seconds: 4));
       await resp.drain();
       client.close();
+      debugPrint('[OrderService] Partner location successfully updated online: $lat, $lng');
     } catch (e) {
-      debugPrint('[OrderService] Error updating partner location: $e');
+      debugPrint('[OrderService] Partner offline / network error. Caching location offline: $e');
+      _cacheLocationOffline(locationData);
+    }
+  }
+
+  void _cacheLocationOffline(Map<String, dynamic> data) {
+    try {
+      final queue = SharedPrefService.getOfflineLocationQueue();
+      if (queue.length >= 50) {
+        queue.removeAt(0);
+      }
+      queue.add(data);
+      SharedPrefService.saveOfflineLocationQueue(queue);
+    } catch (err) {
+      debugPrint('[OrderService] Error caching location offline: $err');
+    }
+  }
+
+  Future<void> _syncOfflineLocations(String partnerId) async {
+    try {
+      final queue = SharedPrefService.getOfflineLocationQueue();
+      if (queue.isEmpty) return;
+
+      debugPrint('[OrderService] Syncing ${queue.length} offline cached location points...');
+      for (final loc in queue) {
+        final client = HttpClient();
+        final url = Uri.parse('$_rtdbBaseUrl/partner_locations/$partnerId.json');
+        final req = await client.putUrl(url).timeout(const Duration(seconds: 3));
+        req.headers.contentType = ContentType.json;
+        req.write(jsonEncode(loc));
+        final resp = await req.close().timeout(const Duration(seconds: 3));
+        await resp.drain();
+        client.close();
+      }
+
+      await SharedPrefService.clearOfflineLocationQueue();
+      debugPrint('[OrderService] Offline location queue successfully synced!');
+    } catch (e) {
+      debugPrint('[OrderService] Error syncing offline locations (still offline): $e');
+      rethrow;
     }
   }
 

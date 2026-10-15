@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import '../utils/my_theme.dart';
 
 class DialogService {
   /// Shows a native-like, smooth toast message using fluttertoast (message only, no title).
@@ -15,7 +14,7 @@ class DialogService {
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: isWarning ? const Color(0xFFE53935) : MyTheme.primary,
+      backgroundColor: isWarning ? const Color(0xFFE53935) : const Color(0xFF1F7A5A),
       textColor: Colors.white,
       fontSize: 14.sp,
     );
@@ -46,7 +45,7 @@ class DialogService {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: isWarning ? const Color(0xFFE53935) : MyTheme.primary,
+              backgroundColor: isWarning ? const Color(0xFFE53935) : const Color(0xFF1F7A5A),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),

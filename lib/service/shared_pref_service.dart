@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SharedPrefService {
@@ -260,5 +261,30 @@ class SharedPrefService {
 
   static bool getBiometricEnabled({bool defaultValue = false}) {
     return _prefs?.getBool(_keyBiometricEnabled) ?? defaultValue;
+  }
+
+  // ── Offline Location Queue ──────────────────────────────────────────
+  static const String _keyOfflineLocationQueue = 'offline_location_queue';
+
+  static Future<void> saveOfflineLocationQueue(List<Map<String, dynamic>> queue) async {
+    await init();
+    final jsonList = queue.map((e) => jsonEncode(e)).toList();
+    await _prefs?.setStringList(_keyOfflineLocationQueue, jsonList);
+  }
+
+  static List<Map<String, dynamic>> getOfflineLocationQueue() {
+    final list = _prefs?.getStringList(_keyOfflineLocationQueue) ?? [];
+    return list.map((e) {
+      try {
+        return jsonDecode(e) as Map<String, dynamic>;
+      } catch (_) {
+        return <String, dynamic>{};
+      }
+    }).where((m) => m.isNotEmpty).toList();
+  }
+
+  static Future<void> clearOfflineLocationQueue() async {
+    await init();
+    await _prefs?.remove(_keyOfflineLocationQueue);
   }
 }

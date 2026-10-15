@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import '../../../utils/my_theme.dart';
 import 'splash_controller.dart';
 
 class SplashScreen extends GetView<SplashController> {
@@ -10,7 +9,7 @@ class SplashScreen extends GetView<SplashController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MyTheme.primary,
+      backgroundColor: const Color(0xFF1F7A5A),
       body: InkWell(
         onTap: controller.onTapSplash,
         child: Center(
