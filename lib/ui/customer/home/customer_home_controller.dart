@@ -1,17 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../config/maps_config.dart';
 import '../../../firebase/auth_service.dart';
 import '../../../firebase/order_service.dart';
 import '../../../models/order_model.dart';
+import '../../../models/place_location.dart';
 import '../../../models/user_model.dart';
 import '../../../route/app_routes.dart';
 import '../../../service/shared_pref_service.dart';
 import '../../../service/notification_service.dart';
+import '../../../service/places_service.dart';
 
 class CustomerHomeController extends GetxController {
   final _authService = AuthService();
   final _orderService = OrderService();
+  final _placesService = PlacesService();
 
   // ── Reactive user state ───────────────────────────────────────────────────
   final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
@@ -84,7 +88,6 @@ class CustomerHomeController extends GetxController {
     }
   }
 
-
   final notificationService = NotificationService();
 
   void _startListeningOrders(String uid) {
@@ -149,6 +152,8 @@ class CustomerHomeController extends GetxController {
   // ── Create Order ──────────────────────────────────────────────────────────
   Future<bool> createOrder({
     required String itemDescription,
+    PlaceLocation? pickupLocation,
+    PlaceLocation? dropLocation,
     required String pickupAddress,
     required String dropAddress,
   }) async {
@@ -188,13 +193,37 @@ class CustomerHomeController extends GetxController {
       // Ensure listener is active for this uid
       _startListeningOrders(uid);
 
+      final pLoc = pickupLocation ??
+          await _placesService.geocodeAddress(pickupAddress) ??
+          PlaceLocation(
+            title: 'Pickup',
+            address: pickupAddress,
+            latitude: MapsConfig.defaultLatitude,
+            longitude: MapsConfig.defaultLongitude,
+          );
+
+      PlaceLocation? dLoc = dropLocation;
+      if (dLoc == null || dLoc.latitude == 0 || dLoc.longitude == 0) {
+        dLoc = await _placesService.geocodeAddress(dropAddress);
+      }
+      dLoc ??= PlaceLocation(
+        title: 'Drop',
+        address: dropAddress,
+        latitude: MapsConfig.defaultLatitude + 0.03,
+        longitude: MapsConfig.defaultLongitude + 0.03,
+      );
+
       final order = await _orderService.createOrder(
         customerId: uid,
         customerName: userName,
         customerPhone: userPhone.isNotEmpty ? userPhone : '+91 98765 43210',
         itemDescription: itemDescription.trim(),
-        pickupAddress: pickupAddress.trim(),
-        dropAddress: dropAddress.trim(),
+        pickupAddress: pLoc.address,
+        pickupLat: pLoc.latitude,
+        pickupLng: pLoc.longitude,
+        dropAddress: dLoc.address,
+        dropLat: dLoc.latitude,
+        dropLng: dLoc.longitude,
       );
 
       // Instant optimistic update so customer sees the card right away
@@ -241,7 +270,7 @@ class CustomerHomeController extends GetxController {
     }
   }
 
-  // ── Logout ────────────────────────────────────────────────────────────────
+  // ── Logout ────────────────────────────────--------------------------------
   Future<void> logout() async {
     try {
       final oldUid = currentUser.value?.uid.isNotEmpty == true

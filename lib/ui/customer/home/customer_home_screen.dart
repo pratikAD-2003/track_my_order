@@ -556,7 +556,34 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
               ],
             ),
 
-            SizedBox(height: 14.h),
+            SizedBox(height: 12.h),
+
+            // Track Rider Button (shown only when rider is assigned)
+            if (order.partnerId != null && order.partnerId!.isNotEmpty && !order.isPending) ...[
+              SizedBox(height: 12.h),
+              SizedBox(
+                width: double.infinity,
+                height: 44.h,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBlue,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                    elevation: 0,
+                  ),
+                  onPressed: () => Get.toNamed(AppRoutes.customerLiveTracking, arguments: order),
+                  icon: Icon(Icons.directions_bike_rounded, color: Colors.white, size: 18.sp),
+                  label: Text(
+                    'Track Rider',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 14.h),
+            ],
 
             // Order Description and ETA Row
             Row(

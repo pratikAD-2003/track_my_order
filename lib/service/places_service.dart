@@ -31,16 +31,91 @@ class PlacesService {
 
   final Geocoding _geocoding = Geocoding();
 
-  /// Search places autocomplete with multi-provider fallback (Restricted to India ["in"]):
-  /// 1. Google Places API (New)
-  /// 2. Google Places API (Legacy)
-  /// 3. OpenStreetMap Nominatim (Free real-time place search)
-  /// 4. Local Geocoding Package
+  /// Search places with STRICT LOCAL RESTRICTION (Nearby current city/state):
+  /// 1. Google Places Text Search (New) with strict `locationRestriction` (50km radius circle)
+  /// 2. Google Places Autocomplete (New) with strict `locationRestriction`
+  /// 3. OpenStreetMap Nominatim with strict `viewbox` & `bounded=1`
+  /// 4. Local Geocoding Package fallback
   Future<List<PlacePrediction>> searchAutocomplete(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
 
-    // 1. Try Google Places API (New) - Restricted to India ("in")
+    // Get current GPS position for strict local restriction
+    double centerLat = MapsConfig.defaultLatitude;
+    double centerLng = MapsConfig.defaultLongitude;
+    try {
+      final pos = await Geolocator.getLastKnownPosition();
+      if (pos != null) {
+        centerLat = pos.latitude;
+        centerLng = pos.longitude;
+      }
+    } catch (_) {}
+
+    // 1. Try Google Places Text Search API (New) - STRICT `locationRestriction` (50km circle)
+    try {
+      final textSearchUrl = Uri.parse('https://places.googleapis.com/v1/places:searchText');
+      final response = await http
+          .post(
+            textSearchUrl,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': MapsConfig.apiKey,
+              'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location',
+            },
+            body: jsonEncode({
+              'textQuery': cleanQuery,
+              'includedRegionCodes': ['in'],
+              'locationRestriction': {
+                'circle': {
+                  'center': {
+                    'latitude': centerLat,
+                    'longitude': centerLng,
+                  },
+                  'radius': 50000.0, // 50km strict radius around current user location
+                },
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final places = data['places'] as List<dynamic>? ?? [];
+        if (places.isNotEmpty) {
+          final results = <PlacePrediction>[];
+          for (final place in places) {
+            final placeId = place['id']?.toString() ?? '';
+            final displayName = place['displayName']?['text']?.toString() ?? cleanQuery;
+            final address = place['formattedAddress']?.toString() ?? displayName;
+            final location = place['location'];
+            final lat = (location?['latitude'] as num?)?.toDouble();
+            final lng = (location?['longitude'] as num?)?.toDouble();
+
+            String mainText = displayName;
+            String secondaryText = address;
+            if (address.contains(',')) {
+              final parts = address.split(',');
+              mainText = parts.first.trim();
+              secondaryText = parts.skip(1).join(', ').trim();
+            }
+
+            results.add(PlacePrediction(
+              placeId: placeId,
+              mainText: mainText,
+              secondaryText: secondaryText,
+              fullText: address,
+              lat: lat,
+              lng: lng,
+            ));
+          }
+          if (results.isNotEmpty) return results;
+        }
+      }
+    } catch (e) {
+      debugPrint('[PlacesService] Google Places Text Search (New) warning: $e');
+    }
+
+    // 2. Try Google Places Autocomplete API (New) - STRICT `locationRestriction`
     try {
       final url = Uri.parse('https://places.googleapis.com/v1/places:autocomplete');
       final response = await http
@@ -53,6 +128,15 @@ class PlacesService {
             body: jsonEncode({
               'input': cleanQuery,
               'includedRegionCodes': ['in'],
+              'locationRestriction': {
+                'circle': {
+                  'center': {
+                    'latitude': centerLat,
+                    'longitude': centerLng,
+                  },
+                  'radius': 50000.0,
+                },
+              },
             }),
           )
           .timeout(const Duration(seconds: 4));
@@ -82,45 +166,19 @@ class PlacesService {
         if (results.isNotEmpty) return results;
       }
     } catch (e) {
-      debugPrint('[PlacesService] Google Places (New) warning: $e');
+      debugPrint('[PlacesService] Google Places (New) autocomplete warning: $e');
     }
 
-    // 2. Try Google Places API (Legacy) - Restricted to India ("country:in")
+    // 3. Try OpenStreetMap Nominatim with strict viewbox & bounded=1 (local area only)
     try {
-      final legacyUrl = Uri.parse(
-        'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(cleanQuery)}&components=country:in&key=${MapsConfig.apiKey}',
-      );
-      final response = await http.get(legacyUrl).timeout(const Duration(seconds: 4));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final predictions = data['predictions'] as List<dynamic>? ?? [];
-        if (predictions.isNotEmpty) {
-          final results = <PlacePrediction>[];
-          for (final item in predictions) {
-            final placeId = item['place_id'] ?? '';
-            final structured = item['structured_formatting'];
-            final main = structured?['main_text'] ?? item['description'] ?? '';
-            final secondary = structured?['secondary_text'] ?? '';
-            final full = item['description'] ?? '$main, $secondary';
+      // Create bounding box approx 0.5 degrees around centerLat, centerLng (~50km)
+      final minLon = centerLng - 0.45;
+      final maxLon = centerLng + 0.45;
+      final minLat = centerLat - 0.45;
+      final maxLat = centerLat + 0.45;
 
-            results.add(PlacePrediction(
-              placeId: placeId,
-              mainText: main,
-              secondaryText: secondary,
-              fullText: full,
-            ));
-          }
-          if (results.isNotEmpty) return results;
-        }
-      }
-    } catch (e) {
-      debugPrint('[PlacesService] Google Places Legacy warning: $e');
-    }
-
-    // 3. Try OpenStreetMap Nominatim (Restricted to India "countrycodes=in")
-    try {
       final osmUrl = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(cleanQuery)}&format=json&addressdetails=1&countrycodes=in&limit=6',
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(cleanQuery)}&format=json&addressdetails=1&countrycodes=in&viewbox=$minLon,$minLat,$maxLon,$maxLat&bounded=1&limit=6',
       );
       final response = await http.get(
         osmUrl,

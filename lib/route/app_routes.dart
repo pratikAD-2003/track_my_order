@@ -8,6 +8,7 @@ class AppRoutes {
   static const String customerMyOrders = "/customerMyOrders";
   static const String customerNotifications = "/customerNotifications";
   static const String selectLocation = "/selectLocation";
+  static const String customerLiveTracking = "/customerLiveTracking";
 
   // Delivery Partner Screens
   static const String partnerHome = "/partnerHome";

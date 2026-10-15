@@ -5,13 +5,13 @@ import 'ui/auth/login/login_controller.dart';
 import 'ui/customer/home/customer_home_controller.dart';
 import 'ui/customer/my_orders/customer_my_orders_controller.dart';
 import 'ui/customer/notifications/notifications_controller.dart';
+import 'ui/customer/live_tracking/customer_live_tracking_controller.dart';
 import 'ui/partner/home/partner_home_controller.dart';
 import 'ui/partner/my_orders/partner_my_orders_controller.dart';
 
 class SplashBinding extends Bindings {
   @override
   void dependencies() {
-    // Register AuthService as a permanent singleton for the whole app
     Get.put<AuthService>(AuthService(), permanent: true);
     Get.lazyPut<SplashController>(() => SplashController());
   }
@@ -43,6 +43,13 @@ class CustomerNotificationsBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<NotificationsController>(() => NotificationsController());
+  }
+}
+
+class CustomerLiveTrackingBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<CustomerLiveTrackingController>(() => CustomerLiveTrackingController());
   }
 }
 

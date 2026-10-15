@@ -1,3 +1,5 @@
+import '../config/maps_config.dart';
+
 class OrderModel {
   final String id;
   final String orderNumber;
@@ -138,11 +140,11 @@ class OrderModel {
       customerPhone: map['customerPhone']?.toString() ?? '',
       itemDescription: map['itemDescription']?.toString() ?? 'Package Delivery',
       pickupAddress: map['pickupAddress']?.toString() ?? 'Pickup Point',
-      pickupLat: _parseDouble(map['pickupLat'], 19.0760),
-      pickupLng: _parseDouble(map['pickupLng'], 72.8777),
+      pickupLat: _parseDouble(map['pickupLat'], MapsConfig.defaultLatitude),
+      pickupLng: _parseDouble(map['pickupLng'], MapsConfig.defaultLongitude),
       dropAddress: map['dropAddress']?.toString() ?? 'Drop Point',
-      dropLat: _parseDouble(map['dropLat'], 19.0896),
-      dropLng: _parseDouble(map['dropLng'], 72.8656),
+      dropLat: _parseDouble(map['dropLat'], MapsConfig.defaultLatitude + 0.03),
+      dropLng: _parseDouble(map['dropLng'], MapsConfig.defaultLongitude + 0.03),
       status: map['status']?.toString() ?? 'pending',
       partnerId: map['partnerId']?.toString(),
       partnerName: map['partnerName']?.toString(),

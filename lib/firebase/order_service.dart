@@ -473,11 +473,11 @@ class OrderService {
     required String customerPhone,
     required String itemDescription,
     required String pickupAddress,
-    double pickupLat = 19.0760,
-    double pickupLng = 72.8777,
+    double pickupLat = 23.2599,
+    double pickupLng = 77.4126,
     required String dropAddress,
-    double dropLat = 19.0896,
-    double dropLng = 72.8656,
+    double dropLat = 23.2899,
+    double dropLng = 77.4426,
   }) async {
     try {
       final orderId = 'ord_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}';
@@ -743,6 +743,114 @@ class OrderService {
       debugPrint('[OrderService] Error cancelling order: $e');
       rethrow;
     }
+  }
+
+  /// Updates the delivery partner's live GPS coordinates in RTDB
+  Future<void> updatePartnerLocation({
+    required String partnerId,
+    required double lat,
+    required double lng,
+  }) async {
+    try {
+      final client = HttpClient();
+      final url = Uri.parse('$_rtdbBaseUrl/partner_locations/$partnerId.json');
+      final req = await client.putUrl(url).timeout(const Duration(seconds: 4));
+      req.headers.contentType = ContentType.json;
+      req.write(jsonEncode({
+        'lat': lat,
+        'lng': lng,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      }));
+      final resp = await req.close().timeout(const Duration(seconds: 4));
+      await resp.drain();
+      client.close();
+    } catch (e) {
+      debugPrint('[OrderService] Error updating partner location: $e');
+    }
+  }
+
+  /// Streams delivery partner's live GPS coordinates in real-time
+  Stream<Map<String, double>?> streamPartnerLocation(String partnerId) {
+    final controller = StreamController<Map<String, double>?>.broadcast();
+    Timer? timer;
+    HttpClient? client;
+
+    void fetch() async {
+      try {
+        client = HttpClient();
+        final url = Uri.parse('$_rtdbBaseUrl/partner_locations/$partnerId.json');
+        final req = await client!.getUrl(url).timeout(const Duration(seconds: 3));
+        final resp = await req.close().timeout(const Duration(seconds: 3));
+        final body = await resp.transform(utf8.decoder).join();
+        client?.close();
+
+        if (body.isNotEmpty && body != 'null') {
+          final parsed = jsonDecode(body);
+          if (parsed is Map) {
+            final lat = double.tryParse(parsed['lat']?.toString() ?? '');
+            final lng = double.tryParse(parsed['lng']?.toString() ?? '');
+            if (lat != null && lng != null) {
+              controller.add({'lat': lat, 'lng': lng});
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    fetch();
+    timer = Timer.periodic(const Duration(seconds: 3), (_) => fetch());
+
+    controller.onCancel = () {
+      timer?.cancel();
+      client?.close(force: true);
+      controller.close();
+    };
+
+    return controller.stream;
+  }
+
+  /// Streams a single order by ID in real-time
+  Stream<OrderModel?> streamOrder(String orderId) {
+    final controller = StreamController<OrderModel?>.broadcast();
+    fetchOrderById(orderId).then((o) => controller.add(o));
+
+    final sub = _ordersStreamController.stream.listen((cache) {
+      if (cache.containsKey(orderId)) {
+        controller.add(cache[orderId]);
+      }
+    });
+
+    controller.onCancel = () {
+      sub.cancel();
+      controller.close();
+    };
+
+    return controller.stream;
+  }
+
+  /// Fetches a single order by ID from cache or RTDB
+  Future<OrderModel?> fetchOrderById(String orderId) async {
+    if (_ordersCache.containsKey(orderId)) return _ordersCache[orderId];
+    try {
+      final client = HttpClient();
+      final url = Uri.parse('$_rtdbBaseUrl/orders/$orderId.json');
+      final req = await client.getUrl(url).timeout(const Duration(seconds: 4));
+      final resp = await req.close().timeout(const Duration(seconds: 4));
+      final body = await resp.transform(utf8.decoder).join();
+      client.close();
+
+      if (body.isNotEmpty && body != 'null') {
+        final parsed = jsonDecode(body);
+        if (parsed is Map) {
+          final order = OrderModel.fromMap(parsed, orderId);
+          _ordersCache[orderId] = order;
+          return order;
+        }
+      }
+    } catch (e) {
+      debugPrint('[OrderService] fetchOrderById error: $e');
+    }
+    return null;
   }
 
   void dispose() {

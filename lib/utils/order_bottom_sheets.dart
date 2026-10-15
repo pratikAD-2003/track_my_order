@@ -354,7 +354,11 @@ class OrderBottomSheets {
                             isSubmitting.value = false;
 
                             if (success) {
-                              Get.back();
+                              if (Get.isBottomSheetOpen == true) {
+                                Get.back(closeOverlays: true);
+                              } else {
+                                Get.back();
+                              }
                             }
                           },
                     child: isSubmitting.value
@@ -1564,7 +1568,11 @@ class OrderBottomSheets {
                           final success = await onVerify(enteredOtp);
                           isVerifying.value = false;
                           if (success) {
-                            Get.back();
+                            if (Get.isBottomSheetOpen == true) {
+                              Get.back(closeOverlays: true);
+                            } else {
+                              Get.back();
+                            }
                           }
                         },
                   child: isVerifying.value

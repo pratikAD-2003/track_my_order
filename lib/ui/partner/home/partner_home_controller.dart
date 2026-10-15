@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../firebase/auth_service.dart';
 import '../../../firebase/order_service.dart';
 import '../../../models/order_model.dart';
@@ -29,6 +30,7 @@ class PartnerHomeController extends GetxController {
   StreamSubscription<OrderModel?>? _activeOrderSub;
   StreamSubscription<List<OrderModel>>? _availableOrdersSub;
   StreamSubscription<List<OrderModel>>? _recentDeliveriesSub;
+  Timer? _gpsTimer;
 
   @override
   void onInit() {
@@ -41,6 +43,7 @@ class PartnerHomeController extends GetxController {
     _activeOrderSub?.cancel();
     _availableOrdersSub?.cancel();
     _recentDeliveriesSub?.cancel();
+    _gpsTimer?.cancel();
     super.onClose();
   }
 
@@ -120,6 +123,35 @@ class PartnerHomeController extends GetxController {
         debugPrint('[PartnerHomeController] Error streaming partner deliveries: $err');
       },
     );
+
+    // 4. Start active live GPS location broadcasting for the rider
+    _startGpsReporting(partnerUid);
+  }
+
+  void _startGpsReporting(String partnerUid) {
+    _gpsTimer?.cancel();
+    _gpsTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      if (isOnline.value || activeOrder.value != null) {
+        try {
+          bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+          if (!serviceEnabled) return;
+
+          LocationPermission permission = await Geolocator.checkPermission();
+          if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+            return;
+          }
+
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+          );
+          await _orderService.updatePartnerLocation(
+            partnerId: partnerUid,
+            lat: pos.latitude,
+            lng: pos.longitude,
+          );
+        } catch (_) {}
+      }
+    });
   }
 
   /// Forces immediate reload of all orders
@@ -143,7 +175,34 @@ class PartnerHomeController extends GetxController {
       recentDeliveries.where((o) => o.isDelivered).length;
   int get availableOrdersCount => availableOrders.length;
 
-  void toggleOnlineStatus() {
+  void toggleOnlineStatus() async {
+    if (!isOnline.value) {
+      // Check location permission before turning online
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Get.snackbar(
+          'Location Services Disabled',
+          'Please enable GPS location to go online.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        Get.snackbar(
+          'Location Permission Required',
+          'Location permission is mandatory for delivery partners.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
+        return;
+      }
+    }
+
     isOnline.value = !isOnline.value;
     Get.snackbar(
       isOnline.value ? 'You are Online' : 'You are Offline',
@@ -168,6 +227,38 @@ class PartnerHomeController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
       );
       return;
+    }
+
+    // ── CRITICAL: Verify location permissions & GPS are enabled before accepting ──
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Get.snackbar(
+          'Location Services Disabled',
+          'Please enable GPS location services to accept and track deliveries.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange.shade800,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        Get.snackbar(
+          'Location Permission Required',
+          'Location permission is mandatory for delivery partners to accept orders.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
+        return;
+      }
+    } catch (e) {
+      debugPrint('[PartnerHomeController] Location check error: $e');
     }
 
     if (activeOrder.value != null) {
@@ -338,6 +429,7 @@ class PartnerHomeController extends GetxController {
       await _activeOrderSub?.cancel();
       await _availableOrdersSub?.cancel();
       await _recentDeliveriesSub?.cancel();
+      _gpsTimer?.cancel();
       isOnline.value = false;
       await _authService.logout();
       await SharedPrefService.clearUserSession();

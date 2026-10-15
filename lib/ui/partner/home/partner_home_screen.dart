@@ -748,10 +748,10 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
               children: [
                 Row(
                   children: [
-                    SizedBox(width: 20.w),
+                    SizedBox(width: 24.w),
                     Expanded(
                       child: Container(
-                        height: 3.h,
+                        height: 3.5.h,
                         color: active.isPickedUp || active.isInTransit
                             ? const Color(0xFF10B981)
                             : const Color(0xFFE2E8F0),
@@ -759,31 +759,49 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
                     ),
                     Expanded(
                       child: Container(
-                        height: 3.h,
+                        height: 3.5.h,
                         color: active.isInTransit
                             ? const Color(0xFF10B981)
                             : const Color(0xFFE2E8F0),
                       ),
                     ),
-                    SizedBox(width: 20.w),
+                    SizedBox(width: 24.w),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.location_on_rounded,
-                        color: const Color(0xFF10B981), size: 24.sp),
+                    Container(
+                      padding: EdgeInsets.all(4.r),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF10B981), width: 2),
+                      ),
+                      child: Icon(Icons.trip_origin_rounded,
+                          color: const Color(0xFF10B981), size: 18.sp),
+                    ),
                     Container(
                       padding: EdgeInsets.all(6.r),
-                      decoration: const BoxDecoration(
-                        color: primaryGreen,
+                      decoration: BoxDecoration(
+                        color: active.isPickedUp || active.isInTransit
+                            ? primaryGreen
+                            : const Color(0xFF94A3B8),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(Icons.directions_bike_rounded,
                           color: Colors.white, size: 16.sp),
                     ),
-                    Icon(Icons.location_on_rounded,
-                        color: const Color(0xFFEF4444), size: 24.sp),
+                    Container(
+                      padding: EdgeInsets.all(4.r),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFEF4444), width: 2),
+                      ),
+                      child: Icon(Icons.location_on_rounded,
+                          color: const Color(0xFFEF4444), size: 18.sp),
+                    ),
                   ],
                 ),
               ],
@@ -914,69 +932,30 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
 
             SizedBox(height: 16.h),
 
-            // Action Progression Button for Partner
+            // Action Progression Swipe Button for Partner
             if (active.isAccepted)
-              SizedBox(
-                width: double.infinity,
-                height: 48.h,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFC2410C),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r)),
-                  ),
-                  onPressed: () => controller.markPickedUp(active.id),
-                  icon: Icon(Icons.inventory_2_outlined,
-                      color: Colors.white, size: 20.sp),
-                  label: Text('Mark as Picked Up',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.5.sp,
-                          fontWeight: FontWeight.bold)),
-                ),
+              _SwipeToActionButton(
+                key: const ValueKey('accepted_swipe'),
+                text: 'Slide to Mark Picked Up ➔',
+                backgroundColor: const Color(0xFFC2410C),
+                onSwipeComplete: () => controller.markPickedUp(active.id),
               )
             else if (active.isPickedUp)
-              SizedBox(
-                width: double.infinity,
-                height: 48.h,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0284C7),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r)),
-                  ),
-                  onPressed: () => controller.startTransit(active.id),
-                  icon: Icon(Icons.directions_bike_rounded,
-                      color: Colors.white, size: 20.sp),
-                  label: Text('Start Delivery (In Transit)',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.5.sp,
-                          fontWeight: FontWeight.bold)),
-                ),
+              _SwipeToActionButton(
+                key: const ValueKey('picked_up_swipe'),
+                text: 'Slide to Start Delivery ➔',
+                backgroundColor: const Color(0xFF0284C7),
+                onSwipeComplete: () => controller.startTransit(active.id),
               )
             else if (active.isInTransit)
-              SizedBox(
-                width: double.infinity,
-                height: 48.h,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14.r)),
-                  ),
-                  onPressed: () => OrderBottomSheets.showOtpVerification(
-                    order: active,
-                    onVerify: (otp) => controller.completeDelivery(
-                        orderId: active.id, enteredOtp: otp),
-                  ),
-                  icon: Icon(Icons.verified_rounded,
-                      color: Colors.white, size: 20.sp),
-                  label: Text('Complete Delivery (Enter OTP)',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.5.sp,
-                          fontWeight: FontWeight.bold)),
+              _SwipeToActionButton(
+                key: const ValueKey('in_transit_swipe'),
+                text: 'Slide to Complete (Enter OTP) ➔',
+                backgroundColor: primaryGreen,
+                onSwipeComplete: () => OrderBottomSheets.showOtpVerification(
+                  order: active,
+                  onVerify: (otp) => controller.completeDelivery(
+                      orderId: active.id, enteredOtp: otp),
                 ),
               ),
           ],
@@ -1055,6 +1034,131 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
           Icon(Icons.chevron_right_rounded, color: const Color(0xFFCBD5E1), size: 18.sp),
         ],
       ),
+    );
+  }
+}
+
+/// Standalone Swipe-to-Act / Slide to Confirm Button Widget
+class _SwipeToActionButton extends StatefulWidget {
+  final String text;
+  final Color backgroundColor;
+  final VoidCallback onSwipeComplete;
+
+  const _SwipeToActionButton({
+    super.key,
+    required this.text,
+    required this.backgroundColor,
+    required this.onSwipeComplete,
+  });
+
+  @override
+  State<_SwipeToActionButton> createState() => _SwipeToActionButtonState();
+}
+
+class _SwipeToActionButtonState extends State<_SwipeToActionButton> {
+  double _dragValue = 0.0;
+  bool _isCompleted = false;
+
+  @override
+  void didUpdateWidget(covariant _SwipeToActionButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      setState(() {
+        _dragValue = 0.0;
+        _isCompleted = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        final thumbWidth = 46.w;
+        final maxTravel = totalWidth - thumbWidth;
+
+        return Container(
+          height: 50.h,
+          decoration: BoxDecoration(
+            color: widget.backgroundColor.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(color: widget.backgroundColor, width: 1.5),
+          ),
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 100),
+                width: thumbWidth + (_dragValue * maxTravel),
+                height: 50.h,
+                decoration: BoxDecoration(
+                  color: widget.backgroundColor,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              Center(
+                child: Text(
+                  widget.text,
+                  style: TextStyle(
+                    color: _dragValue > 0.4 ? Colors.white : widget.backgroundColor,
+                    fontSize: 13.5.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: _dragValue * maxTravel,
+                child: GestureDetector(
+                  onHorizontalDragUpdate: (details) {
+                    if (_isCompleted) return;
+                    setState(() {
+                      _dragValue += details.delta.dx / maxTravel;
+                      if (_dragValue < 0.0) _dragValue = 0.0;
+                      if (_dragValue > 1.0) _dragValue = 1.0;
+                    });
+                  },
+                  onHorizontalDragEnd: (details) {
+                    if (_isCompleted) return;
+                    if (_dragValue >= 0.75) {
+                      setState(() {
+                        _dragValue = 1.0;
+                        _isCompleted = true;
+                      });
+                      widget.onSwipeComplete();
+                    } else {
+                      setState(() {
+                        _dragValue = 0.0;
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: thumbWidth,
+                    height: 44.h,
+                    margin: EdgeInsets.all(3.r),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      color: widget.backgroundColor,
+                      size: 22.sp,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
