@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../firebase/auth_service.dart';
 import '../../../route/app_routes.dart';
+import '../../../service/notification_service.dart';
 import '../../../service/shared_pref_service.dart';
 
 class LoginController extends GetxController {
@@ -104,6 +105,10 @@ class LoginController extends GetxController {
       await SharedPrefService.setUserEmail(userModel.email);
       await SharedPrefService.setUserPhone(userModel.phone);
 
+      // CRITICAL: Sync FCM token now that UID is known
+      // (init() at app start can't do this because UID is unknown at that point)
+      NotificationService().syncTokenForUid(userModel.uid);
+
       _showSuccess('Welcome back, ${userModel.name.split(' ').first}!');
 
       // Navigate based on role
@@ -150,6 +155,9 @@ class LoginController extends GetxController {
       await SharedPrefService.setUserName(userModel.name);
       await SharedPrefService.setUserEmail(userModel.email);
       await SharedPrefService.setUserPhone(userModel.phone);
+
+      // CRITICAL: Sync FCM token now that UID is known
+      NotificationService().syncTokenForUid(userModel.uid);
 
       _showSuccess('Account created! Welcome, ${userModel.name.split(' ').first}!');
 

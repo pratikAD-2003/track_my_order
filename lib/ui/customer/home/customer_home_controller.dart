@@ -45,6 +45,8 @@ class CustomerHomeController extends GetxController {
       if (uid != null) {
         final user = await _authService.fetchUserProfile(uid);
         currentUser.value = user;
+        // Re-sync FCM token every time home loads (covers already-logged-in users)
+        notificationService.syncTokenForUid(uid);
         _startListeningOrders(uid);
       } else {
         final savedUid = SharedPrefService.getUid() ?? '';
@@ -58,6 +60,7 @@ class CustomerHomeController extends GetxController {
           isActive: true,
         );
         if (savedUid.isNotEmpty) {
+          notificationService.syncTokenForUid(savedUid);
           _startListeningOrders(savedUid);
         }
       }
@@ -73,12 +76,14 @@ class CustomerHomeController extends GetxController {
       );
       final savedUid = SharedPrefService.getUid() ?? '';
       if (savedUid.isNotEmpty) {
+        notificationService.syncTokenForUid(savedUid);
         _startListeningOrders(savedUid);
       }
     } finally {
       isLoading.value = false;
     }
   }
+
 
   final notificationService = NotificationService();
 

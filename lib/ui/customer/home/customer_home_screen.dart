@@ -70,23 +70,8 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                         ],
                       ),
                     ),
-                    // Quick Refresh Button
-                    IconButton(
-                      icon: Icon(Icons.refresh_rounded,
-                          color: Colors.white.withValues(alpha: 0.9), size: 22.sp),
-                      onPressed: () {
-                        controller.refreshOrders();
-                        Get.snackbar(
-                          'Syncing Updates',
-                          'Refreshing active orders and deliveries...',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: primaryBlue,
-                          colorText: Colors.white,
-                          duration: const Duration(seconds: 1),
-                        );
-                      },
-                      tooltip: 'Refresh Data',
-                    ),
+
+
                     SizedBox(width: 2.w),
                     // Notification Bell with Live Unread Badge
                     GestureDetector(
