@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../models/order_model.dart';
 import '../../../route/app_routes.dart';
 import '../../../utils/order_bottom_sheets.dart';
@@ -153,7 +154,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                       top: Radius.circular(28.r),
                     ),
                   ),
-                  child: Stack(
+                  child: Obx(() {
+                    if (controller.isLoading.value) {
+                      return _buildShimmerLoading();
+                    }
+                    return Stack(
                     children: [
                       RefreshIndicator(
                         color: primaryBlue,
@@ -359,12 +364,81 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                         ),
                       ),
                     ],
+                  );
+                }),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 90.h),
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 70.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18.r),
                   ),
                 ),
               ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Container(
+                  height: 70.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18.r),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+          Container(
+            height: 110.h,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20.r),
             ),
-          ],
-        ),
+          ),
+          SizedBox(height: 20.h),
+          Container(
+            width: 130.w,
+            height: 16.h,
+            margin: EdgeInsets.only(right: 180.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4.r),
+            ),
+          ),
+          SizedBox(height: 12.h),
+          ...List.generate(
+            3,
+            (index) => Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: Container(
+                height: 76.h,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

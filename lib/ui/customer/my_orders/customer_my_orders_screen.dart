@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../utils/order_bottom_sheets.dart';
 import 'customer_my_orders_controller.dart';
 
@@ -16,7 +17,7 @@ class CustomerMyOrdersScreen extends GetView<CustomerMyOrdersController> {
       body: SafeArea(
         bottom: false,
         child: Column(
-          children: [
+            children: [
             // Top Header: Back button & Title
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
@@ -113,7 +114,7 @@ class CustomerMyOrdersScreen extends GetView<CustomerMyOrdersController> {
                     Expanded(
                       child: Obx(() {
                         if (controller.isLoading.value) {
-                          return const Center(child: CircularProgressIndicator(color: primaryBlue));
+                          return _buildShimmerLoading();
                         }
 
                         final orders = controller.filteredOrders;
@@ -194,12 +195,36 @@ class CustomerMyOrdersScreen extends GetView<CustomerMyOrdersController> {
                         ),
                       );
                     }),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    ),
+  );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView(
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+        physics: const NeverScrollableScrollPhysics(),
+        children: List.generate(
+          4,
+          (index) => Padding(
+            padding: EdgeInsets.only(bottom: 14.h),
+            child: Container(
+              height: 140.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18.r),
+              ),
+            ),
+          ),
         ),
       ),
     );

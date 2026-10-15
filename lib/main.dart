@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         initialRoute: AppRoutes.splashScreen,
         getPages: AppBinding.pages,
-        theme: ThemeData(useMaterial3: true, fontFamily: 'Montserrat'),
+        theme: ThemeData(useMaterial3: true),
         builder: (context, child) {
           ScreenUtil.ensureScreenSize();
           return MediaQuery(

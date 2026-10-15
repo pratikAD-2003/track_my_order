@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../utils/order_bottom_sheets.dart';
 import 'partner_my_orders_controller.dart';
 
@@ -109,71 +110,82 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
                     Expanded(
                       child: Obx(() {
                         if (controller.isLoading.value) {
-                          return const Center(child: CircularProgressIndicator());
+                          return _buildShimmerLoading();
                         }
 
                         final jobs = controller.filteredJobs;
-                        if (jobs.isEmpty) {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.delivery_dining_outlined, size: 48.sp, color: const Color(0xFF94A3B8)),
-                                SizedBox(height: 10.h),
-                                Text(
-                                  'No deliveries found',
-                                  style: TextStyle(
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF475569),
-                                  ),
-                                ),
-                                SizedBox(height: 4.h),
-                                Text(
-                                  'Deliveries matching this filter will show here.',
-                                  style: TextStyle(fontSize: 12.sp, color: const Color(0xFF94A3B8)),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
+                        return RefreshIndicator(
+                          color: primaryGreen,
+                          backgroundColor: Colors.white,
+                          onRefresh: controller.refreshJobs,
+                          child: jobs.isEmpty
+                              ? ListView(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  children: [
+                                    SizedBox(height: 100.h),
+                                    Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.delivery_dining_outlined, size: 48.sp, color: const Color(0xFF94A3B8)),
+                                          SizedBox(height: 10.h),
+                                          Text(
+                                            'No deliveries found',
+                                            style: TextStyle(
+                                              fontSize: 16.sp,
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFF475569),
+                                            ),
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Text(
+                                            'Deliveries matching this filter will show here.\nPull down to refresh.',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(fontSize: 12.sp, color: const Color(0xFF94A3B8)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : ListView.builder(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                                  itemCount: jobs.length,
+                                  itemBuilder: (context, index) {
+                                    final job = jobs[index];
+                                    Color statusBg;
+                                    Color statusColor;
+                                    if (job.isDelivered) {
+                                      statusBg = const Color(0xFFDCFCE7);
+                                      statusColor = const Color(0xFF15803D);
+                                    } else if (job.isPending) {
+                                      statusBg = const Color(0xFFFEF3C7);
+                                      statusColor = const Color(0xFFD97706);
+                                    } else if (job.isAccepted) {
+                                      statusBg = const Color(0xFFE0EDFF);
+                                      statusColor = const Color(0xFF0F62FE);
+                                    } else {
+                                      statusBg = const Color(0xFFFFEDD5);
+                                      statusColor = const Color(0xFFC2410C);
+                                    }
 
-                        return ListView.builder(
-                          padding: EdgeInsets.symmetric(horizontal: 16.w),
-                          itemCount: jobs.length,
-                          itemBuilder: (context, index) {
-                            final job = jobs[index];
-                            Color statusBg;
-                            Color statusColor;
-                            if (job.isDelivered) {
-                              statusBg = const Color(0xFFDCFCE7);
-                              statusColor = const Color(0xFF15803D);
-                            } else if (job.isPending) {
-                              statusBg = const Color(0xFFFEF3C7);
-                              statusColor = const Color(0xFFD97706);
-                            } else if (job.isAccepted) {
-                              statusBg = const Color(0xFFE0EDFF);
-                              statusColor = const Color(0xFF0F62FE);
-                            } else {
-                              statusBg = const Color(0xFFFFEDD5);
-                              statusColor = const Color(0xFFC2410C);
-                            }
-
-                            return _buildPartnerDeliveryCard(
-                              orderId: job.orderNumber,
-                              category: job.itemDescription,
-                              date: '${job.createdAt.day}/${job.createdAt.month}/${job.createdAt.year} at ${job.createdAt.hour.toString().padLeft(2, '0')}:${job.createdAt.minute.toString().padLeft(2, '0')}',
-                              statusText: job.statusDisplay,
-                              statusBg: statusBg,
-                              statusColor: statusColor,
-                              pickup: job.pickupAddress,
-                              drop: job.dropAddress,
-                              distanceTime: job.isDelivered
-                                  ? '2.1 km • Delivered'
-                                  : '2.1 km • ETA ${job.estimatedMinutes} min',
-                              onTap: () => OrderBottomSheets.showRiderViewOrderDetails(job),
-                            );
-                          },
+                                    return _buildPartnerDeliveryCard(
+                                      orderId: job.orderNumber,
+                                      category: job.itemDescription,
+                                      date: '${job.createdAt.day}/${job.createdAt.month}/${job.createdAt.year} at ${job.createdAt.hour.toString().padLeft(2, '0')}:${job.createdAt.minute.toString().padLeft(2, '0')}',
+                                      statusText: job.statusDisplay,
+                                      statusBg: statusBg,
+                                      statusColor: statusColor,
+                                      pickup: job.pickupAddress,
+                                      drop: job.dropAddress,
+                                      distanceTime: job.isDelivered
+                                          ? '2.1 km • Delivered'
+                                          : '2.1 km • ETA ${job.estimatedMinutes} min',
+                                      onTap: () => OrderBottomSheets.showRiderViewOrderDetails(job),
+                                    );
+                                  },
+                                ),
                         );
                       }),
                     ),
@@ -182,6 +194,30 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView(
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+        physics: const NeverScrollableScrollPhysics(),
+        children: List.generate(
+          4,
+          (index) => Padding(
+            padding: EdgeInsets.only(bottom: 14.h),
+            child: Container(
+              height: 140.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18.r),
+              ),
+            ),
+          ),
         ),
       ),
     );

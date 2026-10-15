@@ -38,9 +38,35 @@ class SelectLocationController extends GetxController {
         initialPickup.isNotEmpty &&
         initialPickup != 'Fetching current location...') {
       pickupTextController.text = initialPickup;
+      if (pickupLocation.value == null) {
+        pickupLocation.value = PlaceLocation(
+          title: initialPickup,
+          address: initialPickup,
+          latitude: MapsConfig.defaultLatitude,
+          longitude: MapsConfig.defaultLongitude,
+        );
+        _placesService.geocodeAddress(initialPickup).then((loc) {
+          if (loc != null && pickupTextController.text == initialPickup) {
+            pickupLocation.value = loc;
+          }
+        });
+      }
     }
     if (initialDrop != null && initialDrop.isNotEmpty) {
       dropTextController.text = initialDrop;
+      if (dropLocation.value == null) {
+        dropLocation.value = PlaceLocation(
+          title: initialDrop,
+          address: initialDrop,
+          latitude: MapsConfig.defaultLatitude + 0.03,
+          longitude: MapsConfig.defaultLongitude + 0.03,
+        );
+        _placesService.geocodeAddress(initialDrop).then((loc) {
+          if (loc != null && dropTextController.text == initialDrop) {
+            dropLocation.value = loc;
+          }
+        });
+      }
     }
     if (focusDrop) {
       isPickupFocused.value = false;
@@ -68,13 +94,42 @@ class SelectLocationController extends GetxController {
         final p = args['pickupAddress'] as String;
         if (p.isNotEmpty && p != 'Fetching current location...') {
           pickupTextController.text = p;
+          if (pickupLocation.value == null) {
+            pickupLocation.value = PlaceLocation(
+              title: p,
+              address: p,
+              latitude: MapsConfig.defaultLatitude,
+              longitude: MapsConfig.defaultLongitude,
+            );
+            _placesService.geocodeAddress(p).then((loc) {
+              if (loc != null && pickupTextController.text == p) {
+                pickupLocation.value = loc;
+              }
+            });
+          }
         }
       }
 
       if (args['drop'] is PlaceLocation) {
         setDrop(args['drop'] as PlaceLocation);
       } else if (args['dropAddress'] is String) {
-        dropTextController.text = args['dropAddress'] as String;
+        final d = args['dropAddress'] as String;
+        if (d.isNotEmpty) {
+          dropTextController.text = d;
+          if (dropLocation.value == null) {
+            dropLocation.value = PlaceLocation(
+              title: d,
+              address: d,
+              latitude: MapsConfig.defaultLatitude + 0.03,
+              longitude: MapsConfig.defaultLongitude + 0.03,
+            );
+            _placesService.geocodeAddress(d).then((loc) {
+              if (loc != null && dropTextController.text == d) {
+                dropLocation.value = loc;
+              }
+            });
+          }
+        }
       }
 
       if (args['focusDrop'] == true) {
@@ -318,14 +373,41 @@ class SelectLocationController extends GetxController {
   }
 
   bool get canConfirm =>
-      pickupLocation.value != null && dropLocation.value != null;
+      (pickupLocation.value != null || pickupTextController.text.trim().isNotEmpty) &&
+      (dropLocation.value != null || dropTextController.text.trim().isNotEmpty);
 
-  void confirmLocations() {
-    if (!canConfirm) return;
+  Future<void> confirmLocations() async {
+    PlaceLocation? p = pickupLocation.value;
+    if (p == null && pickupTextController.text.trim().isNotEmpty) {
+      final text = pickupTextController.text.trim();
+      p = await _placesService.geocodeAddress(text) ??
+          PlaceLocation(
+            title: text,
+            address: text,
+            latitude: MapsConfig.defaultLatitude,
+            longitude: MapsConfig.defaultLongitude,
+          );
+      pickupLocation.value = p;
+    }
+
+    PlaceLocation? d = dropLocation.value;
+    if (d == null && dropTextController.text.trim().isNotEmpty) {
+      final text = dropTextController.text.trim();
+      d = await _placesService.geocodeAddress(text) ??
+          PlaceLocation(
+            title: text,
+            address: text,
+            latitude: MapsConfig.defaultLatitude + 0.03,
+            longitude: MapsConfig.defaultLongitude + 0.03,
+          );
+      dropLocation.value = d;
+    }
+
+    if (p == null || d == null) return;
 
     Get.back(result: {
-      'pickup': pickupLocation.value!,
-      'drop': dropLocation.value!,
+      'pickup': p,
+      'drop': d,
     });
   }
 }

@@ -463,8 +463,8 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
 
   Widget _buildStickyConfirmBar() {
     return Obx(() {
-      final hasPickup = controller.pickupLocation.value != null;
-      final hasDrop = controller.dropLocation.value != null;
+      final hasPickup = controller.pickupLocation.value != null || controller.pickupTextController.text.trim().isNotEmpty;
+      final hasDrop = controller.dropLocation.value != null || controller.dropTextController.text.trim().isNotEmpty;
 
       return SafeArea(
         child: Container(

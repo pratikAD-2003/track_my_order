@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../route/app_routes.dart';
 import '../../../utils/order_bottom_sheets.dart';
 import 'partner_home_controller.dart';
@@ -92,11 +93,20 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
                   ),
-                  child: Stack(
+                  child: Obx(() {
+                    if (controller.isLoading.value) {
+                      return _buildShimmerLoading();
+                    }
+                    return Stack(
                     children: [
-                      ListView(
-                        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 90.h),
-                        children: [
+                      RefreshIndicator(
+                        color: primaryGreen,
+                        backgroundColor: Colors.white,
+                        onRefresh: controller.refreshOrders,
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 90.h),
+                          children: [
                           // Stat Cards Row
                           Obx(() {
                             return Row(
@@ -231,6 +241,7 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
                           }),
                         ],
                       ),
+                      ),
 
                       // Bottom "Go Online / Go Offline" Toggle Button
                       Positioned(
@@ -280,12 +291,71 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
                         }),
                       ),
                     ],
+                  );
+                }),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 90.h),
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 70.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18.r),
                   ),
                 ),
               ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Container(
+                  height: 70.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18.r),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+          Container(
+            height: 110.h,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20.r),
             ),
-          ],
-        ),
+          ),
+          SizedBox(height: 20.h),
+          ...List.generate(
+            3,
+            (index) => Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: Container(
+                height: 76.h,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

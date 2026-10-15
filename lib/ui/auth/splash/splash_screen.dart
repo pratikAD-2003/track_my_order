@@ -32,7 +32,7 @@ class SplashScreen extends GetView<SplashController> {
               ),
               SizedBox(height: 8.h),
               Text(
-                'Fast & Reliable Delivery\n(Tap anywhere to continue)',
+                'Fast & Reliable Delivery',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14.sp,

@@ -57,6 +57,10 @@ class PartnerMyOrdersController extends GetxController {
     selectedFilter.value = filter;
   }
 
+  Future<void> refreshJobs() async {
+    await _orderService.refreshAllOrders();
+  }
+
   List<OrderModel> get filteredJobs {
     switch (selectedFilter.value) {
       case 'Active':
