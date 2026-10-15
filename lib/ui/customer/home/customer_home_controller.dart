@@ -8,9 +8,11 @@ import '../../../models/order_model.dart';
 import '../../../models/place_location.dart';
 import '../../../models/user_model.dart';
 import '../../../route/app_routes.dart';
+import '../../../service/dialog_service.dart';
 import '../../../service/shared_pref_service.dart';
 import '../../../service/notification_service.dart';
 import '../../../service/places_service.dart';
+import '../../../service/routes_service.dart';
 
 class CustomerHomeController extends GetxController {
   final _authService = AuthService();
@@ -176,15 +178,15 @@ class CustomerHomeController extends GetxController {
     }
 
     if (itemDescription.trim().isEmpty) {
-      Get.snackbar('Missing Field', 'Please enter order description / name.');
+      DialogService.showToast(message: 'Please enter order description / name.', isWarning: true);
       return false;
     }
     if (pickupAddress.trim().isEmpty) {
-      Get.snackbar('Missing Field', 'Please provide a pickup address.');
+      DialogService.showToast(message: 'Please provide a pickup address.', isWarning: true);
       return false;
     }
     if (dropAddress.trim().isEmpty) {
-      Get.snackbar('Missing Field', 'Please provide a drop address.');
+      DialogService.showToast(message: 'Please provide a drop address.', isWarning: true);
       return false;
     }
 
@@ -213,6 +215,18 @@ class CustomerHomeController extends GetxController {
         longitude: MapsConfig.defaultLongitude + 0.03,
       );
 
+      // Compute live route and ETA (duration) via RoutesService
+      int estimatedMins = 15;
+      try {
+        final routeInfo = await RoutesService().computeRoute(
+          originLat: pLoc.latitude,
+          originLng: pLoc.longitude,
+          destLat: dLoc.latitude,
+          destLng: dLoc.longitude,
+        );
+        estimatedMins = routeInfo.durationMinutes;
+      } catch (_) {}
+
       final order = await _orderService.createOrder(
         customerId: uid,
         customerName: userName,
@@ -224,6 +238,7 @@ class CustomerHomeController extends GetxController {
         dropAddress: dLoc.address,
         dropLat: dLoc.latitude,
         dropLng: dLoc.longitude,
+        estimatedMinutes: estimatedMins,
       );
 
       // Instant optimistic update so customer sees the card right away
@@ -231,23 +246,10 @@ class CustomerHomeController extends GetxController {
       recentOrders.removeWhere((o) => o.id == order.id);
       recentOrders.insert(0, order);
 
-      Get.snackbar(
-        'Order Placed! 🎉',
-        'Order ${order.orderNumber} placed. Delivery OTP is ${order.otp}',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFF10B981),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 4),
-      );
+      DialogService.showToast(message: 'Order Placed! 🎉 Delivery OTP is ${order.otp}');
       return true;
     } catch (e) {
-      Get.snackbar(
-        'Failed to Place Order',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.redAccent,
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'Failed to Place Order: $e', isWarning: true);
       return false;
     } finally {
       isCreatingOrder.value = false;
@@ -258,19 +260,13 @@ class CustomerHomeController extends GetxController {
   Future<void> cancelOrder(String orderId) async {
     try {
       await _orderService.cancelOrder(orderId);
-      Get.snackbar(
-        'Order Cancelled',
-        'Your delivery order has been cancelled.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.orange.shade800,
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'Your delivery order has been cancelled.', isWarning: true);
     } catch (e) {
-      Get.snackbar('Error', 'Failed to cancel order: $e', snackPosition: SnackPosition.BOTTOM);
+      DialogService.showToast(message: 'Failed to cancel order: $e', isWarning: true);
     }
   }
 
-  // ── Logout ────────────────────────────────--------------------------------
+  // ── Logout ────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     try {
       final oldUid = currentUser.value?.uid.isNotEmpty == true
@@ -286,25 +282,17 @@ class CustomerHomeController extends GetxController {
       currentUser.value = null;
       Get.offAllNamed(AppRoutes.login);
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Could not log out. Please try again.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      DialogService.showToast(message: 'Could not log out. Please try again.', isWarning: true);
     }
   }
 
   void confirmLogout() {
-    Get.defaultDialog(
+    DialogService.showConfirmationDialog(
       title: 'Log Out',
-      middleText: 'Are you sure you want to log out?',
-      textConfirm: 'Log Out',
-      textCancel: 'Cancel',
-      confirmTextColor: const Color(0xFFFFFFFF),
-      onConfirm: () {
-        Get.back();
-        logout();
-      },
+      message: 'Are you sure you want to log out?',
+      confirmText: 'Log Out',
+      isWarning: true,
+      onConfirm: logout,
     );
   }
 }

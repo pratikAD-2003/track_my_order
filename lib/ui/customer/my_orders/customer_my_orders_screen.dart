@@ -57,14 +57,6 @@ class CustomerMyOrdersScreen extends GetView<CustomerMyOrdersController> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: EdgeInsets.all(8.r),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.tune_rounded, color: Colors.white, size: 20.sp),
-                  ),
                 ],
               ),
             ),

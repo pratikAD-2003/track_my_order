@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../models/order_model.dart';
 import '../models/user_model.dart';
 import '../service/notification_service.dart';
+import '../service/routes_service.dart';
 
 class OrderService {
   static final OrderService _instance = OrderService._internal();
@@ -478,12 +479,26 @@ class OrderService {
     required String dropAddress,
     double dropLat = 23.2899,
     double dropLng = 77.4426,
+    int? estimatedMinutes,
   }) async {
     try {
       final orderId = 'ord_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}';
       final otp = (1000 + Random().nextInt(9000)).toString();
       final orderNumber = '#ORD${1000 + Random().nextInt(9000)}';
       final now = DateTime.now();
+
+      int finalEstimatedMins = estimatedMinutes ?? 15;
+      if (estimatedMinutes == null) {
+        try {
+          final routeInfo = await RoutesService().computeRoute(
+            originLat: pickupLat,
+            originLng: pickupLng,
+            destLat: dropLat,
+            destLng: dropLng,
+          );
+          finalEstimatedMins = routeInfo.durationMinutes;
+        } catch (_) {}
+      }
 
       final order = OrderModel(
         id: orderId,
@@ -500,7 +515,7 @@ class OrderService {
         dropLng: dropLng,
         status: 'pending',
         otp: otp,
-        estimatedMinutes: 15 + Random().nextInt(10),
+        estimatedMinutes: finalEstimatedMins,
         createdAt: now,
         updatedAt: now,
       );
@@ -521,11 +536,43 @@ class OrderService {
         ),
       );
 
-      debugPrint('[OrderService] Order $orderId created with OTP $otp');
+      debugPrint('[OrderService] Order $orderId created with OTP $otp (ETA: $finalEstimatedMins mins)');
       return order;
     } catch (e) {
       debugPrint('[OrderService] Error creating order: $e');
       rethrow;
+    }
+  }
+
+  /// Updates the order's estimated travel time (ETA) in real time
+  Future<void> updateOrderEstimatedMinutes({
+    required String orderId,
+    required int estimatedMinutes,
+  }) async {
+    final now = DateTime.now();
+    final updateData = <String, dynamic>{
+      'estimatedMinutes': estimatedMinutes,
+      'updatedAt': now.millisecondsSinceEpoch,
+    };
+
+    if (_ordersCache.containsKey(orderId)) {
+      _ordersCache[orderId] = _ordersCache[orderId]!.copyWith(
+        estimatedMinutes: estimatedMinutes,
+        updatedAt: now,
+      );
+      _notifyListeners();
+    }
+
+    try {
+      await _patchToRtdbRest('orders/$orderId', updateData);
+      unawaited(
+        _ordersRef.child(orderId).update(updateData).timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => null,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[OrderService] Error updating estimated minutes: $e');
     }
   }
 

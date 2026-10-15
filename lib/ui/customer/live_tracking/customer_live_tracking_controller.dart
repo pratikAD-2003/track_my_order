@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../firebase/order_service.dart';
 import '../../../models/order_model.dart';
+import '../../../service/dialog_service.dart';
+import '../../../service/routes_service.dart';
 
 class CustomerLiveTrackingController extends GetxController {
   final OrderService _orderService = OrderService();
@@ -16,10 +20,12 @@ class CustomerLiveTrackingController extends GetxController {
   GoogleMapController? mapController;
   StreamSubscription<OrderModel?>? _orderSub;
   StreamSubscription<Map<String, double>?>? _partnerLocationSub;
+  BitmapDescriptor? _scooterIcon;
 
   @override
   void onInit() {
     super.onInit();
+    _loadScooterIcon();
     final args = Get.arguments;
     if (args is OrderModel) {
       order.value = args;
@@ -37,6 +43,54 @@ class CustomerLiveTrackingController extends GetxController {
     super.onClose();
   }
 
+  Future<void> _loadScooterIcon() async {
+    try {
+      final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
+      final Canvas canvas = Canvas(pictureRecorder);
+      const double size = 40.0;
+
+      // Outer blue circle background
+      final Paint circlePaint = Paint()..color = const Color(0xFF0F62FE);
+      canvas.drawCircle(const Offset(size / 2, size / 2), size / 2, circlePaint);
+
+      // White border ring
+      final Paint borderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+      canvas.drawCircle(const Offset(size / 2, size / 2), size / 2 - 2.5, borderPaint);
+
+      // Draw Scooter / Bike Icon
+      final TextPainter textPainter = TextPainter(textDirection: TextDirection.ltr);
+      textPainter.text = TextSpan(
+        text: String.fromCharCode(Icons.directions_bike_rounded.codePoint),
+        style: TextStyle(
+          fontSize: 24.0,
+          fontFamily: Icons.directions_bike_rounded.fontFamily,
+          package: Icons.directions_bike_rounded.fontPackage,
+          color: Colors.white,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset((size - textPainter.width) / 2, (size - textPainter.height) / 2),
+      );
+
+      final ui.Image image = await pictureRecorder.endRecording().toImage(size.toInt(), size.toInt());
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        final Uint8List uint8List = byteData.buffer.asUint8List();
+        _scooterIcon = BitmapDescriptor.bytes(uint8List);
+        if (order.value != null) {
+          _updateMapMarkersAndRoute(order.value!);
+        }
+      }
+    } catch (e) {
+      debugPrint('[CustomerLiveTrackingController] Error creating scooter marker icon: $e');
+    }
+  }
+
   Future<void> _fetchOrderById(String orderId) async {
     final fetched = await _orderService.fetchOrderById(orderId);
     if (fetched != null) {
@@ -51,6 +105,15 @@ class CustomerLiveTrackingController extends GetxController {
       if (updated != null) {
         order.value = updated;
         _updateMapMarkersAndRoute(updated);
+
+        // Auto-navigate back when order is delivered or cancelled
+        if (updated.isDelivered || updated.isCancelled) {
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (Get.isRegistered<CustomerLiveTrackingController>()) {
+              Get.back();
+            }
+          });
+        }
       }
     });
 
@@ -64,19 +127,41 @@ class CustomerLiveTrackingController extends GetxController {
 
   void _startPartnerLocationStream(String partnerId) {
     _partnerLocationSub?.cancel();
-    _partnerLocationSub = _orderService.streamPartnerLocation(partnerId).listen((latLngMap) {
+    _partnerLocationSub = _orderService.streamPartnerLocation(partnerId).listen((latLngMap) async {
       if (latLngMap != null) {
         final lat = latLngMap['lat'];
         final lng = latLngMap['lng'];
         if (lat != null && lng != null) {
           riderLocation.value = LatLng(lat, lng);
           _updateRiderMarker(LatLng(lat, lng));
+
+          // ── Live ETA calculation & update as rider moves on customer tracking screen ──
+          final o = order.value;
+          if (o != null && o.isActive) {
+            final targetLat = o.isAccepted ? o.pickupLat : o.dropLat;
+            final targetLng = o.isAccepted ? o.pickupLng : o.dropLng;
+            try {
+              final routeInfo = await RoutesService().computeRoute(
+                originLat: lat,
+                originLng: lng,
+                destLat: targetLat,
+                destLng: targetLng,
+              );
+              if (routeInfo.durationMinutes != o.estimatedMinutes) {
+                order.value = o.copyWith(estimatedMinutes: routeInfo.durationMinutes);
+                await _orderService.updateOrderEstimatedMinutes(
+                  orderId: o.id,
+                  estimatedMinutes: routeInfo.durationMinutes,
+                );
+              }
+            } catch (_) {}
+          }
         }
       }
     });
   }
 
-  void _updateMapMarkersAndRoute(OrderModel o) {
+  Future<void> _updateMapMarkersAndRoute(OrderModel o) async {
     final newMarkers = <MarkerId, Marker>{};
 
     // Pickup Marker
@@ -95,30 +180,45 @@ class CustomerLiveTrackingController extends GetxController {
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
     );
 
-    // Rider Live Location Marker
+    // Rider Live Location Marker with custom Scooter Icon
     final currentRiderPos = riderLocation.value;
     if (currentRiderPos != null) {
       newMarkers[const MarkerId('rider')] = Marker(
         markerId: const MarkerId('rider'),
         position: currentRiderPos,
         infoWindow: InfoWindow(
-          title: o.partnerName ?? 'Delivery Partner',
+          title: '🛵 Scooter • ${o.partnerName ?? "Delivery Partner"}',
           snippet: o.partnerVehicle ?? 'Motorcycle',
         ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        icon: _scooterIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       );
     }
 
     markers.assignAll(newMarkers);
 
-    // Polyline route: Pickup -> Rider (if available) -> Drop
-    final polylinePoints = <LatLng>[
-      LatLng(o.pickupLat, o.pickupLng),
-    ];
+    // Compute precise road polyline points via RoutesService
+    List<LatLng> polylinePoints = [];
     if (currentRiderPos != null) {
-      polylinePoints.add(currentRiderPos);
+      final targetLat = o.isAccepted ? o.pickupLat : o.dropLat;
+      final targetLng = o.isAccepted ? o.pickupLng : o.dropLng;
+      try {
+        final routeInfo = await RoutesService().computeRoute(
+          originLat: currentRiderPos.latitude,
+          originLng: currentRiderPos.longitude,
+          destLat: targetLat,
+          destLng: targetLng,
+        );
+        polylinePoints = routeInfo.polylinePoints;
+      } catch (_) {}
     }
-    polylinePoints.add(LatLng(o.dropLat, o.dropLng));
+
+    if (polylinePoints.isEmpty) {
+      polylinePoints = [
+        LatLng(o.pickupLat, o.pickupLng),
+        ?currentRiderPos,
+        LatLng(o.dropLat, o.dropLng),
+      ];
+    }
 
     final polylineId = const PolylineId('route');
     polylines[polylineId] = Polyline(
@@ -165,30 +265,18 @@ class CustomerLiveTrackingController extends GetxController {
   void callPartner() {
     final phone = order.value?.partnerPhone;
     if (phone != null && phone.isNotEmpty) {
-      Get.snackbar(
-        'Call Partner',
-        'Calling ${order.value?.partnerName ?? "Rider"} at $phone',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFF10B981),
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'Calling ${order.value?.partnerName ?? "Rider"} at $phone');
     } else {
-      Get.snackbar('Contact', 'Partner phone number not available.', snackPosition: SnackPosition.BOTTOM);
+      DialogService.showToast(message: 'Partner phone number not available.', isWarning: true);
     }
   }
 
   void messagePartner() {
     final phone = order.value?.partnerPhone;
     if (phone != null && phone.isNotEmpty) {
-      Get.snackbar(
-        'Message Partner',
-        'SMS to ${order.value?.partnerName ?? "Rider"} at $phone',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFF0F62FE),
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'SMS to ${order.value?.partnerName ?? "Rider"} at $phone');
     } else {
-      Get.snackbar('Contact', 'Partner phone number not available.', snackPosition: SnackPosition.BOTTOM);
+      DialogService.showToast(message: 'Partner phone number not available.', isWarning: true);
     }
   }
 }

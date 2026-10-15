@@ -7,8 +7,10 @@ import '../../../firebase/order_service.dart';
 import '../../../models/order_model.dart';
 import '../../../models/user_model.dart';
 import '../../../route/app_routes.dart';
+import '../../../service/dialog_service.dart';
 import '../../../service/shared_pref_service.dart';
 import '../../../service/notification_service.dart';
+import '../../../service/routes_service.dart';
 
 class PartnerHomeController extends GetxController {
   final _authService = AuthService();
@@ -149,7 +151,37 @@ class PartnerHomeController extends GetxController {
             lat: pos.latitude,
             lng: pos.longitude,
           );
-        } catch (_) {}
+
+          // ── Live ETA calculation & update based on rider current position ──
+          final currentActiveOrder = activeOrder.value;
+          if (currentActiveOrder != null && currentActiveOrder.isActive) {
+            final targetLat = currentActiveOrder.isAccepted
+                ? currentActiveOrder.pickupLat
+                : currentActiveOrder.dropLat;
+            final targetLng = currentActiveOrder.isAccepted
+                ? currentActiveOrder.pickupLng
+                : currentActiveOrder.dropLng;
+
+            final routeInfo = await RoutesService().computeRoute(
+              originLat: pos.latitude,
+              originLng: pos.longitude,
+              destLat: targetLat,
+              destLng: targetLng,
+            );
+
+            if (routeInfo.durationMinutes != currentActiveOrder.estimatedMinutes) {
+              await _orderService.updateOrderEstimatedMinutes(
+                orderId: currentActiveOrder.id,
+                estimatedMinutes: routeInfo.durationMinutes,
+              );
+              activeOrder.value = currentActiveOrder.copyWith(
+                estimatedMinutes: routeInfo.durationMinutes,
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('[PartnerHomeController] GPS reporting / ETA update error: $e');
+        }
       }
     });
   }
@@ -180,11 +212,7 @@ class PartnerHomeController extends GetxController {
       // Check location permission before turning online
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        Get.snackbar(
-          'Location Services Disabled',
-          'Please enable GPS location to go online.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        DialogService.showToast(message: 'Please enable GPS location to go online.', isWarning: true);
         return;
       }
       LocationPermission permission = await Geolocator.checkPermission();
@@ -192,27 +220,14 @@ class PartnerHomeController extends GetxController {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        Get.snackbar(
-          'Location Permission Required',
-          'Location permission is mandatory for delivery partners.',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
+        DialogService.showToast(message: 'Location permission is mandatory for delivery partners.', isWarning: true);
         return;
       }
     }
 
     isOnline.value = !isOnline.value;
-    Get.snackbar(
-      isOnline.value ? 'You are Online' : 'You are Offline',
-      isOnline.value
-          ? 'You can now receive new delivery orders.'
-          : 'You will not receive any new delivery orders.',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isOnline.value ? const Color(0xFF006837) : Colors.grey.shade700,
-      colorText: Colors.white,
-      duration: const Duration(seconds: 2),
+    DialogService.showToast(
+      message: isOnline.value ? 'You are Online & ready for orders' : 'You are Offline',
     );
   }
 
@@ -221,11 +236,7 @@ class PartnerHomeController extends GetxController {
   /// Accept an available delivery job
   Future<void> acceptOrder(OrderModel order) async {
     if (!isOnline.value) {
-      Get.snackbar(
-        'Offline',
-        'Please toggle Online first to accept orders.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      DialogService.showToast(message: 'Please toggle Online first to accept orders.', isWarning: true);
       return;
     }
 
@@ -233,13 +244,7 @@ class PartnerHomeController extends GetxController {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        Get.snackbar(
-          'Location Services Disabled',
-          'Please enable GPS location services to accept and track deliveries.',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orange.shade800,
-          colorText: Colors.white,
-        );
+        DialogService.showToast(message: 'Please enable GPS location services to accept deliveries.', isWarning: true);
         return;
       }
 
@@ -248,13 +253,7 @@ class PartnerHomeController extends GetxController {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        Get.snackbar(
-          'Location Permission Required',
-          'Location permission is mandatory for delivery partners to accept orders.',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
+        DialogService.showToast(message: 'Location permission is mandatory for delivery partners.', isWarning: true);
         return;
       }
     } catch (e) {
@@ -262,13 +261,7 @@ class PartnerHomeController extends GetxController {
     }
 
     if (activeOrder.value != null) {
-      Get.snackbar(
-        'Active Order In Progress',
-        'Please complete your current active order before accepting another.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.orange.shade800,
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'Please complete your current active order before accepting another.', isWarning: true);
       return;
     }
 
@@ -313,21 +306,9 @@ class PartnerHomeController extends GetxController {
     isProcessingAction.value = true;
     try {
       await _orderService.acceptOrder(orderId: order.id, partner: partner);
-      Get.snackbar(
-        'Order Accepted! 🚀',
-        'You have accepted ${order.orderNumber}. Head to the pickup location.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFF006837),
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'Order Accepted! 🚀 Head to pickup location.');
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Could not accept order: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.redAccent,
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'Could not accept order: $e', isWarning: true);
     } finally {
       isProcessingAction.value = false;
     }
@@ -342,15 +323,9 @@ class PartnerHomeController extends GetxController {
     isProcessingAction.value = true;
     try {
       await _orderService.updateOrderStatus(orderId: orderId, newStatus: 'picked_up');
-      Get.snackbar(
-        'Order Picked Up! 📦',
-        'Package picked up from merchant/customer.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFFC2410C),
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'Order Picked Up! 📦');
     } catch (e) {
-      Get.snackbar('Error', 'Failed to update: $e', snackPosition: SnackPosition.BOTTOM);
+      DialogService.showToast(message: 'Failed to update: $e', isWarning: true);
     } finally {
       isProcessingAction.value = false;
     }
@@ -365,15 +340,9 @@ class PartnerHomeController extends GetxController {
     isProcessingAction.value = true;
     try {
       await _orderService.updateOrderStatus(orderId: orderId, newStatus: 'in_transit');
-      Get.snackbar(
-        'In Transit! 🛵',
-        'On the way to destination. Ask the customer for the delivery OTP.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFF0284C7),
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: 'In Transit! 🛵 Ask customer for delivery OTP.');
     } catch (e) {
-      Get.snackbar('Error', 'Failed to update: $e', snackPosition: SnackPosition.BOTTOM);
+      DialogService.showToast(message: 'Failed to update: $e', isWarning: true);
     } finally {
       isProcessingAction.value = false;
     }
@@ -394,23 +363,10 @@ class PartnerHomeController extends GetxController {
         activeOrder.value = null;
       }
 
-      Get.snackbar(
-        'Delivered Successfully! 🎉',
-        'OTP verified and delivery completed! Great job.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFF006837),
-        colorText: Colors.white,
-        duration: const Duration(seconds: 4),
-      );
+      DialogService.showToast(message: 'Delivered Successfully! 🎉 OTP verified.');
       return true;
     } catch (e) {
-      Get.snackbar(
-        'OTP Verification Failed',
-        e.toString().replaceAll('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.redAccent,
-        colorText: Colors.white,
-      );
+      DialogService.showToast(message: e.toString().replaceAll('Exception: ', ''), isWarning: true);
       return false;
     } finally {
       isProcessingAction.value = false;
@@ -436,25 +392,17 @@ class PartnerHomeController extends GetxController {
       currentUser.value = null;
       Get.offAllNamed(AppRoutes.login);
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Could not log out. Please try again.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      DialogService.showToast(message: 'Could not log out. Please try again.', isWarning: true);
     }
   }
 
   void confirmLogout() {
-    Get.defaultDialog(
+    DialogService.showConfirmationDialog(
       title: 'Log Out',
-      middleText: 'Are you sure you want to log out?',
-      textConfirm: 'Log Out',
-      textCancel: 'Cancel',
-      confirmTextColor: const Color(0xFFFFFFFF),
-      onConfirm: () {
-        Get.back();
-        logout();
-      },
+      message: 'Are you sure you want to log out?',
+      confirmText: 'Log Out',
+      isWarning: true,
+      onConfirm: logout,
     );
   }
 }

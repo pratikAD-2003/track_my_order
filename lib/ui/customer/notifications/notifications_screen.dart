@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import '../../../service/dialog_service.dart';
 import 'notifications_controller.dart';
 
 class NotificationsScreen extends StatelessWidget {
@@ -130,26 +131,12 @@ class _NotifHeader extends StatelessWidget {
   }
 
   void _showClearDialog(NotificationsController controller) {
-    Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-        title: const Text('Clear All Notifications?'),
-        content: const Text('This will remove all notification history permanently.'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () {
-              Get.back();
-              controller.clearAll();
-            },
-            child: const Text('Clear', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    DialogService.showConfirmationDialog(
+      title: 'Clear All Notifications?',
+      message: 'This will remove all notification history permanently.',
+      confirmText: 'Clear',
+      isWarning: true,
+      onConfirm: controller.clearAll,
     );
   }
 }

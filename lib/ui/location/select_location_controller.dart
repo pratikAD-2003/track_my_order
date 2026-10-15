@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../config/maps_config.dart';
 import '../../models/place_location.dart';
+import '../../service/dialog_service.dart';
 import '../../service/places_service.dart';
 import 'map_location_picker_screen.dart';
 
@@ -228,10 +229,9 @@ class SelectLocationController extends GetxController {
       }
       predictions.clear();
     } else {
-      Get.snackbar(
-        'GPS Unavailable',
-        'Could not fetch your location. Please check location permissions.',
-        snackPosition: SnackPosition.BOTTOM,
+      DialogService.showToast(
+        message: 'Could not fetch your location. Please check location permissions.',
+        isWarning: true,
       );
     }
   }

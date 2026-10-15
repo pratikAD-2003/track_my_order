@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../firebase/auth_service.dart';
 import '../../../route/app_routes.dart';
+import '../../../service/dialog_service.dart';
 import '../../../service/notification_service.dart';
 import '../../../service/shared_pref_service.dart';
 
@@ -97,6 +98,18 @@ class LoginController extends GetxController {
         return;
       }
 
+      // Check role mismatch between selected mode and registered user role
+      final expectedRole = isCustomer.value ? 'customer' : 'partner';
+      if (userModel.role != expectedRole) {
+        await _authService.logout();
+        if (userModel.isCustomer) {
+          _showError('This account is registered as a Customer. Please switch to Customer mode to log in.');
+        } else {
+          _showError('This account is registered as a Delivery Partner. Please switch to Partner mode to log in.');
+        }
+        return;
+      }
+
       // Persist session
       await SharedPrefService.setIsLogin(true);
       await SharedPrefService.setUid(userModel.uid);
@@ -105,9 +118,8 @@ class LoginController extends GetxController {
       await SharedPrefService.setUserEmail(userModel.email);
       await SharedPrefService.setUserPhone(userModel.phone);
 
-      // CRITICAL: Sync FCM token now that UID is known
-      // (init() at app start can't do this because UID is unknown at that point)
-      NotificationService().syncTokenForUid(userModel.uid);
+      // CRITICAL: Sync FCM token now that UID and role are known
+      NotificationService().syncTokenForUid(userModel.uid, role: userModel.role);
 
       _showSuccess('Welcome back, ${userModel.name.split(' ').first}!');
 
@@ -157,7 +169,7 @@ class LoginController extends GetxController {
       await SharedPrefService.setUserPhone(userModel.phone);
 
       // CRITICAL: Sync FCM token now that UID is known
-      NotificationService().syncTokenForUid(userModel.uid);
+      NotificationService().syncTokenForUid(userModel.uid, role: userModel.role);
 
       _showSuccess('Account created! Welcome, ${userModel.name.split(' ').first}!');
 
@@ -183,31 +195,11 @@ class LoginController extends GetxController {
   }
 
   void _showError(String message) {
-    Get.snackbar(
-      'Error',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: const Color(0xFFDC2626),
-      colorText: const Color(0xFFFFFFFF),
-      margin: const EdgeInsets.all(16),
-      borderRadius: 12,
-      duration: const Duration(seconds: 4),
-      icon: const Icon(Icons.error_outline_rounded, color: Colors.white),
-    );
+    DialogService.showToast(message: message, isWarning: true);
   }
 
   void _showSuccess(String message) {
-    Get.snackbar(
-      'Success',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: const Color(0xFF16A34A),
-      colorText: const Color(0xFFFFFFFF),
-      margin: const EdgeInsets.all(16),
-      borderRadius: 12,
-      duration: const Duration(seconds: 3),
-      icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
-    );
+    DialogService.showToast(message: message);
   }
 
   @override

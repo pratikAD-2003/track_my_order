@@ -13,7 +13,6 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: primaryBlue,
       body: SafeArea(
@@ -71,7 +70,6 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                       ),
                     ),
 
-
                     SizedBox(width: 2.w),
                     // Notification Bell with Live Unread Badge
                     GestureDetector(
@@ -85,11 +83,17 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                               color: Colors.white.withValues(alpha: 0.15),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(Icons.notifications_none_rounded,
-                                color: Colors.white, size: 22.sp),
+                            child: Icon(
+                              Icons.notifications_none_rounded,
+                              color: Colors.white,
+                              size: 22.sp,
+                            ),
                           ),
                           Obx(() {
-                            final count = controller.notificationService.unreadCount.value;
+                            final count = controller
+                                .notificationService
+                                .unreadCount
+                                .value;
                             if (count <= 0) return const SizedBox.shrink();
                             return Positioned(
                               top: -2,
@@ -100,8 +104,10 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                                   color: Color(0xFFEF4444),
                                   shape: BoxShape.circle,
                                 ),
-                                constraints:
-                                    BoxConstraints(minWidth: 16.w, minHeight: 16.h),
+                                constraints: BoxConstraints(
+                                  minWidth: 16.w,
+                                  minHeight: 16.h,
+                                ),
                                 child: Text(
                                   count > 9 ? '9+' : '$count',
                                   style: TextStyle(
@@ -120,8 +126,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                     SizedBox(width: 4.w),
                     // Logout button
                     IconButton(
-                      icon: Icon(Icons.logout_rounded,
-                          color: Colors.white.withValues(alpha: 0.85), size: 22.sp),
+                      icon: Icon(
+                        Icons.logout_rounded,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        size: 22.sp,
+                      ),
                       onPressed: controller.confirmLogout,
                       tooltip: 'Logout',
                     ),
@@ -134,188 +143,223 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
 
             // Main White Rounded Body Container
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
-                ),
-                child: Stack(
-                  children: [
-                    RefreshIndicator(
-                      color: primaryBlue,
-                      backgroundColor: Colors.white,
-                      onRefresh: controller.refreshOrders,
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 90.h),
-                        children: [
-                          // Stat Cards Row
-                          Obx(() {
-                            return Row(
+              child: ClipRRect(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(28.r),
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      RefreshIndicator(
+                        color: primaryBlue,
+                        backgroundColor: Colors.white,
+                        onRefresh: controller.refreshOrders,
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 90.h),
+                          children: [
+                            // Stat Cards Row
+                            Obx(() {
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      title: 'Total Orders',
+                                      value: '${controller.totalOrdersCount}',
+                                      icon: Icons.assignment_outlined,
+                                      iconBg: const Color(0xFFE0EDFF),
+                                      iconColor: primaryBlue,
+                                      cardBg: const Color(0xFFEEF5FF),
+                                    ),
+                                  ),
+                                  SizedBox(width: 12.w),
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      title: 'Active Orders',
+                                      value: '${controller.activeOrdersCount}',
+                                      icon: Icons.local_shipping_outlined,
+                                      iconBg: const Color(0xFFDCFCE7),
+                                      iconColor: const Color(0xFF10B981),
+                                      cardBg: const Color(0xFFF0FDF4),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }),
+
+                            SizedBox(height: 20.h),
+
+                            // Active Order Card
+                            _buildActiveOrderCard(context),
+
+                            SizedBox(height: 24.h),
+
+                            // Recent Orders Header
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Expanded(
-                                  child: _buildStatCard(
-                                    title: 'Total Orders',
-                                    value: '${controller.totalOrdersCount}',
-                                    icon: Icons.assignment_outlined,
-                                    iconBg: const Color(0xFFE0EDFF),
-                                    iconColor: primaryBlue,
-                                    cardBg: const Color(0xFFEEF5FF),
+                                Text(
+                                  'Recent Orders',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF0F172A),
                                   ),
                                 ),
-                                SizedBox(width: 12.w),
-                                Expanded(
-                                  child: _buildStatCard(
-                                    title: 'Active Orders',
-                                    value: '${controller.activeOrdersCount}',
-                                    icon: Icons.local_shipping_outlined,
-                                    iconBg: const Color(0xFFDCFCE7),
-                                    iconColor: const Color(0xFF10B981),
-                                    cardBg: const Color(0xFFF0FDF4),
+                                GestureDetector(
+                                  onTap: () =>
+                                      Get.toNamed(AppRoutes.customerMyOrders),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'View All',
+                                        style: TextStyle(
+                                          fontSize: 13.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: primaryBlue,
+                                        ),
+                                      ),
+                                      SizedBox(width: 2.w),
+                                      Icon(
+                                        Icons.chevron_right_rounded,
+                                        size: 18.sp,
+                                        color: primaryBlue,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
-                            );
-                          }),
-
-                        SizedBox(height: 20.h),
-
-                        // Active Order Card
-                        _buildActiveOrderCard(context),
-
-                        SizedBox(height: 24.h),
-
-                        // Recent Orders Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Recent Orders',
-                              style: TextStyle(
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF0F172A),
-                              ),
                             ),
-                            GestureDetector(
-                              onTap: () => Get.toNamed(AppRoutes.customerMyOrders),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    'View All',
-                                    style: TextStyle(
-                                      fontSize: 13.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: primaryBlue,
+
+                            SizedBox(height: 12.h),
+
+                            // Reactive Recent Orders List
+                            Obx(() {
+                              final orders = controller.recentOrders;
+                              if (orders.isEmpty) {
+                                return Container(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 24.h,
+                                    horizontal: 16.w,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16.r),
+                                    border: Border.all(
+                                      color: const Color(0xFFE2E8F0),
                                     ),
                                   ),
-                                  SizedBox(width: 2.w),
-                                  Icon(Icons.chevron_right_rounded, size: 18.sp, color: primaryBlue),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: 12.h),
-
-                        // Reactive Recent Orders List
-                        Obx(() {
-                          final orders = controller.recentOrders;
-                          if (orders.isEmpty) {
-                            return Container(
-                              padding: EdgeInsets.symmetric(vertical: 24.h, horizontal: 16.w),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16.r),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Column(
-                                children: [
-                                  Icon(Icons.inbox_outlined, size: 36.sp, color: const Color(0xFF94A3B8)),
-                                  SizedBox(height: 8.h),
-                                  Text(
-                                    'No orders yet',
-                                    style: TextStyle(
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF475569),
-                                    ),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.inbox_outlined,
+                                        size: 36.sp,
+                                        color: const Color(0xFF94A3B8),
+                                      ),
+                                      SizedBox(height: 8.h),
+                                      Text(
+                                        'No orders yet',
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF475569),
+                                        ),
+                                      ),
+                                      SizedBox(height: 4.h),
+                                      Text(
+                                        'Place your first delivery by tapping the (+) button below.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 12.sp,
+                                          color: const Color(0xFF94A3B8),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  SizedBox(height: 4.h),
-                                  Text(
-                                    'Place your first delivery by tapping the (+) button below.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 12.sp, color: const Color(0xFF94A3B8)),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-
-                          return Column(
-                            children: orders.take(5).map((order) {
-                              Color statusBg;
-                              Color statusColor;
-                              if (order.isCancelled) {
-                                statusBg = const Color(0xFFFEE2E2);
-                                statusColor = const Color(0xFFDC2626);
-                              } else if (order.isDelivered) {
-                                statusBg = const Color(0xFFDCFCE7);
-                                statusColor = const Color(0xFF15803D);
-                              } else if (order.isPending) {
-                                statusBg = const Color(0xFFFEF3C7);
-                                statusColor = const Color(0xFFD97706);
-                              } else if (order.isAccepted) {
-                                statusBg = const Color(0xFFE0EDFF);
-                                statusColor = primaryBlue;
-                              } else {
-                                statusBg = const Color(0xFFE0F2FE);
-                                statusColor = const Color(0xFF0369A1);
+                                );
                               }
 
-                              return InkWell(
-                                onTap: () => OrderBottomSheets.showCustomerViewOrderDetails(order),
-                                borderRadius: BorderRadius.circular(16.r),
-                                child: _buildOrderItem(
-                                  icon: Icons.inventory_2_outlined,
-                                  orderId: order.orderNumber,
-                                  category: order.itemDescription,
-                                  time: '${order.createdAt.hour.toString().padLeft(2, '0')}:${order.createdAt.minute.toString().padLeft(2, '0')}',
-                                  statusText: order.statusDisplay,
-                                  statusBg: statusBg,
-                                  statusColor: statusColor,
-                                ),
-                              );
-                            }).toList(),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
+                              return Column(
+                                children: orders.take(5).map((order) {
+                                  Color statusBg;
+                                  Color statusColor;
+                                  if (order.isCancelled) {
+                                    statusBg = const Color(0xFFFEE2E2);
+                                    statusColor = const Color(0xFFDC2626);
+                                  } else if (order.isDelivered) {
+                                    statusBg = const Color(0xFFDCFCE7);
+                                    statusColor = const Color(0xFF15803D);
+                                  } else if (order.isPending) {
+                                    statusBg = const Color(0xFFFEF3C7);
+                                    statusColor = const Color(0xFFD97706);
+                                  } else if (order.isAccepted) {
+                                    statusBg = const Color(0xFFE0EDFF);
+                                    statusColor = primaryBlue;
+                                  } else {
+                                    statusBg = const Color(0xFFE0F2FE);
+                                    statusColor = const Color(0xFF0369A1);
+                                  }
 
-                    // Floating Action Button (+) Opens Create Order Sheet directly
-                    Positioned(
-                      right: 16.w,
-                      bottom: 24.h,
-                      child: FloatingActionButton(
-                        onPressed: () => OrderBottomSheets.showCreateOrderForm(
-                          context,
-                          onCreateOrder: ({required name, required pickup, required drop}) =>
-                              controller.createOrder(
-                            itemDescription: name,
-                            pickupAddress: pickup,
-                            dropAddress: drop,
+                                  return InkWell(
+                                    onTap: () =>
+                                        OrderBottomSheets.showCustomerViewOrderDetails(
+                                          order,
+                                        ),
+                                    borderRadius: BorderRadius.circular(16.r),
+                                    child: _buildOrderItem(
+                                      icon: Icons.inventory_2_outlined,
+                                      orderId: order.orderNumber,
+                                      category: order.itemDescription,
+                                      time:
+                                          '${order.createdAt.hour.toString().padLeft(2, '0')}:${order.createdAt.minute.toString().padLeft(2, '0')}',
+                                      statusText: order.statusDisplay,
+                                      statusBg: statusBg,
+                                      statusColor: statusColor,
+                                    ),
+                                  );
+                                }).toList(),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+
+                      // Floating Action Button (+) Opens Create Order Sheet directly
+                      Positioned(
+                        right: 16.w,
+                        bottom: 24.h,
+                        child: FloatingActionButton(
+                          onPressed: () =>
+                              OrderBottomSheets.showCreateOrderForm(
+                                context,
+                                onCreateOrder:
+                                    ({
+                                      required name,
+                                      required pickup,
+                                      required drop,
+                                    }) => controller.createOrder(
+                                      itemDescription: name,
+                                      pickupAddress: pickup,
+                                      dropAddress: drop,
+                                    ),
+                              ),
+                          backgroundColor: primaryBlue,
+                          elevation: 4,
+                          shape: const CircleBorder(),
+                          child: Icon(
+                            Icons.add_rounded,
+                            color: Colors.white,
+                            size: 28.sp,
                           ),
                         ),
-                        backgroundColor: primaryBlue,
-                        elevation: 4,
-                        shape: const CircleBorder(),
-                        child: Icon(Icons.add_rounded, color: Colors.white, size: 28.sp),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -354,7 +398,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                 ),
                 child: Icon(icon, color: iconColor, size: 20.sp),
               ),
-              Icon(Icons.chevron_right_rounded, color: const Color(0xFF64748B), size: 20.sp),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: const Color(0xFF64748B),
+                size: 20.sp,
+              ),
             ],
           ),
           SizedBox(height: 12.h),
@@ -407,8 +455,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                   color: Color(0xFFEFF6FF),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.local_shipping_outlined,
-                    color: primaryBlue, size: 30.sp),
+                child: Icon(
+                  Icons.local_shipping_outlined,
+                  color: primaryBlue,
+                  size: 30.sp,
+                ),
               ),
               SizedBox(height: 12.h),
               Text(
@@ -436,18 +487,24 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                     backgroundColor: primaryBlue,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r)),
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
                   ),
                   onPressed: () => OrderBottomSheets.showCreateOrderForm(
                     context,
-                    onCreateOrder: ({required name, required pickup, required drop}) =>
-                        controller.createOrder(
-                      itemDescription: name,
-                      pickupAddress: pickup,
-                      dropAddress: drop,
-                    ),
+                    onCreateOrder:
+                        ({required name, required pickup, required drop}) =>
+                            controller.createOrder(
+                              itemDescription: name,
+                              pickupAddress: pickup,
+                              dropAddress: drop,
+                            ),
                   ),
-                  icon: Icon(Icons.add_rounded, color: Colors.white, size: 18.sp),
+                  icon: Icon(
+                    Icons.add_rounded,
+                    color: Colors.white,
+                    size: 18.sp,
+                  ),
                   label: Text(
                     'Create Delivery',
                     style: TextStyle(
@@ -521,7 +578,10 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                     ),
                     SizedBox(width: 8.w),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 7.w,
+                        vertical: 2.h,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDCFCE7),
                         borderRadius: BorderRadius.circular(6.r),
@@ -539,7 +599,10 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                   ],
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 4.h,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeBg,
                     borderRadius: BorderRadius.circular(12.r),
@@ -559,7 +622,9 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
             SizedBox(height: 12.h),
 
             // Track Rider Button (shown only when rider is assigned)
-            if (order.partnerId != null && order.partnerId!.isNotEmpty && !order.isPending) ...[
+            if (order.partnerId != null &&
+                order.partnerId!.isNotEmpty &&
+                !order.isPending) ...[
               SizedBox(height: 12.h),
               SizedBox(
                 width: double.infinity,
@@ -567,11 +632,20 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
                     elevation: 0,
                   ),
-                  onPressed: () => Get.toNamed(AppRoutes.customerLiveTracking, arguments: order),
-                  icon: Icon(Icons.directions_bike_rounded, color: Colors.white, size: 18.sp),
+                  onPressed: () => Get.toNamed(
+                    AppRoutes.customerLiveTracking,
+                    arguments: order,
+                  ),
+                  icon: Icon(
+                    Icons.directions_bike_rounded,
+                    color: Colors.white,
+                    size: 18.sp,
+                  ),
                   label: Text(
                     'Track Rider',
                     style: TextStyle(
@@ -594,7 +668,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                     color: const Color(0xFFE0EDFF),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
-                  child: Icon(Icons.inventory_2_outlined, color: primaryBlue, size: 24.sp),
+                  child: Icon(
+                    Icons.inventory_2_outlined,
+                    color: primaryBlue,
+                    size: 24.sp,
+                  ),
                 ),
                 SizedBox(width: 12.w),
                 Expanded(
@@ -612,7 +690,10 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                       SizedBox(height: 2.h),
                       Text(
                         order.itemDescription,
-                        style: TextStyle(fontSize: 12.sp, color: const Color(0xFF64748B)),
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: const Color(0xFF64748B),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -625,27 +706,19 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.access_time_rounded, size: 14.sp, color: primaryBlue),
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 14.sp,
+                          color: primaryBlue,
+                        ),
                         SizedBox(width: 4.w),
                         Text(
-                          'ETA ${order.estimatedMinutes} min',
+                          order.estimatedMinutes <= 0 ? 'ETA Arriving' : 'ETA ${order.estimatedMinutes} min',
                           style: TextStyle(
                             fontSize: 12.sp,
                             fontWeight: FontWeight.bold,
                             color: primaryBlue,
                           ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.near_me_outlined, size: 13.sp, color: const Color(0xFF64748B)),
-                        SizedBox(width: 2.w),
-                        Text(
-                          '2.8 km away',
-                          style: TextStyle(fontSize: 11.5.sp, color: const Color(0xFF64748B)),
                         ),
                       ],
                     ),
@@ -698,7 +771,10 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                             ),
                             Text(
                               order.pickupAddress,
-                              style: TextStyle(fontSize: 12.sp, color: const Color(0xFF0F172A)),
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: const Color(0xFF0F172A),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -723,7 +799,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.location_on_rounded, size: 14.sp, color: const Color(0xFFEF4444)),
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 14.sp,
+                        color: const Color(0xFFEF4444),
+                      ),
                       SizedBox(width: 8.w),
                       Expanded(
                         child: Column(
@@ -739,7 +819,10 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                             ),
                             Text(
                               order.dropAddress,
-                              style: TextStyle(fontSize: 12.sp, color: const Color(0xFF0F172A)),
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: const Color(0xFF0F172A),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -769,7 +852,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                       color: primaryBlue.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.key_rounded, color: primaryBlue, size: 20.sp),
+                    child: Icon(
+                      Icons.key_rounded,
+                      color: primaryBlue,
+                      size: 20.sp,
+                    ),
                   ),
                   SizedBox(width: 10.w),
                   Expanded(
@@ -786,13 +873,19 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                         ),
                         Text(
                           'Give this code to rider upon arrival',
-                          style: TextStyle(fontSize: 10.sp, color: const Color(0xFF64748B)),
+                          style: TextStyle(
+                            fontSize: 10.sp,
+                            color: const Color(0xFF64748B),
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 5.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 5.h,
+                    ),
                     decoration: BoxDecoration(
                       color: primaryBlue,
                       borderRadius: BorderRadius.circular(8.r),
@@ -815,7 +908,8 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
 
             // Rider Details Sub-card
             InkWell(
-              onTap: () => OrderBottomSheets.showCustomerViewOrderDetails(order),
+              onTap: () =>
+                  OrderBottomSheets.showCustomerViewOrderDetails(order),
               borderRadius: BorderRadius.circular(14.r),
               child: Container(
                 padding: EdgeInsets.all(12.w),
@@ -869,9 +963,14 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                         ],
                       ),
                     ),
-                    if (order.partnerName != null && (order.partnerPhone?.isNotEmpty == true))
+                    if (order.partnerName != null &&
+                        (order.partnerPhone?.isNotEmpty == true))
                       IconButton(
-                        icon: Icon(Icons.phone_in_talk_rounded, color: primaryBlue, size: 22.sp),
+                        icon: Icon(
+                          Icons.phone_in_talk_rounded,
+                          color: primaryBlue,
+                          size: 22.sp,
+                        ),
                         onPressed: () {
                           Get.snackbar(
                             'Rider Contact',
@@ -884,7 +983,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                         tooltip: 'Call Rider',
                       )
                     else
-                      Icon(Icons.chevron_right_rounded, color: const Color(0xFF94A3B8), size: 20.sp),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: const Color(0xFF94A3B8),
+                        size: 20.sp,
+                      ),
                   ],
                 ),
               ),
@@ -900,11 +1003,20 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFDC2626),
                       side: const BorderSide(color: Color(0xFFFCA5A5)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 14.w,
+                        vertical: 8.h,
+                      ),
                     ),
                     onPressed: () => controller.cancelOrder(order.id),
-                    icon: Icon(Icons.cancel_outlined, size: 16.sp, color: const Color(0xFFDC2626)),
+                    icon: Icon(
+                      Icons.cancel_outlined,
+                      size: 16.sp,
+                      color: const Color(0xFFDC2626),
+                    ),
                     label: Text(
                       'Cancel Request',
                       style: TextStyle(
@@ -949,7 +1061,9 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
               return Expanded(
                 child: Container(
                   height: 3.h,
-                  color: isLineActive ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                  color: isLineActive
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFE2E8F0),
                 ),
               );
             }
@@ -1010,10 +1124,14 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 10.sp,
-                  fontWeight: isCurrent || isCompleted ? FontWeight.bold : FontWeight.w500,
+                  fontWeight: isCurrent || isCompleted
+                      ? FontWeight.bold
+                      : FontWeight.w500,
                   color: isCurrent
                       ? primaryBlue
-                      : (isCompleted ? const Color(0xFF10B981) : const Color(0xFF94A3B8)),
+                      : (isCompleted
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF94A3B8)),
                 ),
               ),
             );
@@ -1090,7 +1208,11 @@ class CustomerHomeScreen extends GetView<CustomerHomeController> {
             ),
           ),
           SizedBox(width: 4.w),
-          Icon(Icons.chevron_right_rounded, color: const Color(0xFFCBD5E1), size: 18.sp),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: const Color(0xFFCBD5E1),
+            size: 18.sp,
+          ),
         ],
       ),
     );

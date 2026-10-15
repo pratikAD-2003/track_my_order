@@ -48,7 +48,7 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
                         ),
                         SizedBox(height: 2.h),
                         Text(
-                          'Completed payouts & active jobs',
+                          'Completed & active jobs history',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 12.sp,
@@ -56,14 +56,6 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
                         ),
                       ],
                     ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.all(8.r),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 20.sp),
                   ),
                 ],
               ),
@@ -107,61 +99,6 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
                               onTap: () => controller.setFilter('Completed'),
                             ),
                           ],
-                        ),
-                      );
-                    }),
-
-                    SizedBox(height: 14.h),
-
-                    // Earnings Summary Card
-                    Obx(() {
-                      final count = controller.completedCount;
-                      final earned = (count * 15.0).toStringAsFixed(2);
-                      return Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w),
-                        child: Container(
-                          padding: EdgeInsets.all(14.w),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0FDF4),
-                            borderRadius: BorderRadius.circular(16.r),
-                            border: Border.all(color: const Color(0xFFDCFCE7)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: EdgeInsets.all(10.r),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFDCFCE7),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(Icons.payments_rounded, color: primaryGreen, size: 22.sp),
-                              ),
-                              SizedBox(width: 12.w),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Total Earned: \$$earned',
-                                      style: TextStyle(
-                                        fontSize: 15.sp,
-                                        fontWeight: FontWeight.bold,
-                                        color: primaryGreen,
-                                      ),
-                                    ),
-                                    SizedBox(height: 2.h),
-                                    Text(
-                                      '$count Deliveries Completed • 4.9 ⭐ Rating',
-                                      style: TextStyle(
-                                        fontSize: 11.5.sp,
-                                        color: const Color(0xFF15803D),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       );
                     }),
@@ -224,7 +161,6 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
 
                             return _buildPartnerDeliveryCard(
                               orderId: job.orderNumber,
-                              payout: '\$15.00',
                               category: job.itemDescription,
                               date: '${job.createdAt.day}/${job.createdAt.month}/${job.createdAt.year} at ${job.createdAt.hour.toString().padLeft(2, '0')}:${job.createdAt.minute.toString().padLeft(2, '0')}',
                               statusText: job.statusDisplay,
@@ -280,7 +216,6 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
 
   Widget _buildPartnerDeliveryCard({
     required String orderId,
-    required String payout,
     required String category,
     required String date,
     required String statusText,
@@ -333,33 +268,20 @@ class PartnerMyOrdersScreen extends GetView<PartnerMyOrdersController> {
                   ),
                 ],
               ),
-              Row(
-                children: [
-                  Text(
-                    payout,
-                    style: TextStyle(
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF006837),
-                    ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
                   ),
-                  SizedBox(width: 8.w),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                    decoration: BoxDecoration(
-                      color: statusBg,
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),

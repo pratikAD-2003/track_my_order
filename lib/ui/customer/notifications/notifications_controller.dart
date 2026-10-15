@@ -12,18 +12,16 @@ class NotificationsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Mark all as read when screen opens
-    _markAllRead();
-
-    // Refresh history from RTDB
     final uid = SharedPrefService.getUid() ?? '';
+    _markAllRead(uid);
+
     if (uid.isNotEmpty) {
       notificationService.refreshNotificationHistory(uid);
     }
   }
 
-  void _markAllRead() {
-    notificationService.markAllRead();
+  void _markAllRead(String uid) {
+    notificationService.markAllRead(uid);
   }
 
   void deleteNotification(int index) {

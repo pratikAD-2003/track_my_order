@@ -84,200 +84,203 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
 
             // Main White Rounded Body Container
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
-                ),
-                child: Stack(
-                  children: [
-                    ListView(
-                      padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 90.h),
-                      children: [
-                        // Stat Cards Row
-                        Obx(() {
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatCard(
-                                  title: 'Completed',
-                                  value: '${controller.totalDeliveriesCount}',
-                                  icon: Icons.check_circle_outline_rounded,
-                                  iconBg: const Color(0xFFDCFCE7),
-                                  iconColor: const Color(0xFF10B981),
-                                  cardBg: const Color(0xFFF0FDF4),
-                                ),
-                              ),
-                              SizedBox(width: 12.w),
-                              Expanded(
-                                child: _buildStatCard(
-                                  title: 'Available Jobs',
-                                  value: '${controller.availableOrdersCount}',
-                                  icon: Icons.two_wheeler_outlined,
-                                  iconBg: const Color(0xFFE0EDFF),
-                                  iconColor: const Color(0xFF0F62FE),
-                                  cardBg: const Color(0xFFEEF5FF),
-                                ),
-                              ),
-                            ],
-                          );
-                        }),
-
-                        SizedBox(height: 20.h),
-
-                        // Active Order Card
-                        _buildActiveOrderCard(context),
-
-                        SizedBox(height: 24.h),
-
-                        // Available / Recent Orders Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Recent Deliveries',
-                              style: TextStyle(
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF0F172A),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () => Get.toNamed(AppRoutes.partnerMyOrders),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    'View All',
-                                    style: TextStyle(
-                                      fontSize: 13.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF0F62FE),
-                                    ),
-                                  ),
-                                  SizedBox(width: 2.w),
-                                  Icon(Icons.chevron_right_rounded, size: 18.sp, color: const Color(0xFF0F62FE)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: 12.h),
-
-                        // Reactive Deliveries List
-                        Obx(() {
-                          final jobs = controller.recentDeliveries;
-                          if (jobs.isEmpty) {
-                            return Container(
-                              padding: EdgeInsets.symmetric(vertical: 24.h, horizontal: 16.w),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16.r),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Column(
-                                children: [
-                                  Icon(Icons.assignment_outlined, size: 36.sp, color: const Color(0xFF94A3B8)),
-                                  SizedBox(height: 8.h),
-                                  Text(
-                                    'No completed jobs yet',
-                                    style: TextStyle(
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF475569),
-                                    ),
-                                  ),
-                                  SizedBox(height: 4.h),
-                                  Text(
-                                    'Accept an available delivery above to start earning.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 12.sp, color: const Color(0xFF94A3B8)),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-
-                          return Column(
-                            children: jobs.take(5).map((job) {
-                              Color statusBg;
-                              Color statusColor;
-                              if (job.isDelivered) {
-                                statusBg = const Color(0xFFDCFCE7);
-                                statusColor = const Color(0xFF15803D);
-                              } else {
-                                statusBg = const Color(0xFFE0F2FE);
-                                statusColor = const Color(0xFF0284C7);
-                              }
-
-                              return InkWell(
-                                onTap: () => OrderBottomSheets.showRiderViewOrderDetails(job),
-                                borderRadius: BorderRadius.circular(16.r),
-                                child: _buildOrderItem(
-                                  icon: Icons.inventory_2_outlined,
-                                  orderId: job.orderNumber,
-                                  category: job.itemDescription,
-                                  time: '${job.createdAt.hour.toString().padLeft(2, '0')}:${job.createdAt.minute.toString().padLeft(2, '0')}',
-                                  statusText: job.statusDisplay,
-                                  statusBg: statusBg,
-                                  statusColor: statusColor,
-                                ),
-                              );
-                            }).toList(),
-                          );
-                        }),
-                      ],
-                    ),
-
-                    // Bottom "Go Online / Go Offline" Toggle Button
-                    Positioned(
-                      left: 16.w,
-                      right: 16.w,
-                      bottom: 18.h,
-                      child: Obx(() {
-                        final online = controller.isOnline.value;
-                        return SizedBox(
-                          height: 52.h,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  online ? const Color(0xFFDC2626) : primaryGreen,
-                              foregroundColor: Colors.white,
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16.r),
-                              ),
-                            ),
-                            onPressed: () {
-                              controller.toggleOnlineStatus();
-                            },
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+              child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
+                  ),
+                  child: Stack(
+                    children: [
+                      ListView(
+                        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 90.h),
+                        children: [
+                          // Stat Cards Row
+                          Obx(() {
+                            return Row(
                               children: [
-                                Icon(
-                                  online
-                                      ? Icons.sensors_off_rounded
-                                      : Icons.sensors_rounded,
-                                  color: Colors.white,
-                                  size: 20.sp,
+                                Expanded(
+                                  child: _buildStatCard(
+                                    title: 'Completed',
+                                    value: '${controller.totalDeliveriesCount}',
+                                    icon: Icons.check_circle_outline_rounded,
+                                    iconBg: const Color(0xFFDCFCE7),
+                                    iconColor: const Color(0xFF10B981),
+                                    cardBg: const Color(0xFFF0FDF4),
+                                  ),
                                 ),
-                                SizedBox(width: 8.w),
-                                Text(
-                                  online ? 'Go Offline' : 'Go Online',
-                                  style: TextStyle(
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                SizedBox(width: 12.w),
+                                Expanded(
+                                  child: _buildStatCard(
+                                    title: 'Available Jobs',
+                                    value: '${controller.availableOrdersCount}',
+                                    icon: Icons.two_wheeler_outlined,
+                                    iconBg: const Color(0xFFE0EDFF),
+                                    iconColor: const Color(0xFF0F62FE),
+                                    cardBg: const Color(0xFFEEF5FF),
                                   ),
                                 ),
                               ],
-                            ),
+                            );
+                          }),
+
+                          SizedBox(height: 20.h),
+
+                          // Active Order Card
+                          _buildActiveOrderCard(context),
+
+                          SizedBox(height: 24.h),
+
+                          // Available / Recent Orders Header
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Recent Deliveries',
+                                style: TextStyle(
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => Get.toNamed(AppRoutes.partnerMyOrders),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'View All',
+                                      style: TextStyle(
+                                        fontSize: 13.sp,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF0F62FE),
+                                      ),
+                                    ),
+                                    SizedBox(width: 2.w),
+                                    Icon(Icons.chevron_right_rounded, size: 18.sp, color: const Color(0xFF0F62FE)),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        );
-                      }),
-                    ),
-                  ],
+
+                          SizedBox(height: 12.h),
+
+                          // Reactive Deliveries List
+                          Obx(() {
+                            final jobs = controller.recentDeliveries;
+                            if (jobs.isEmpty) {
+                              return Container(
+                                padding: EdgeInsets.symmetric(vertical: 24.h, horizontal: 16.w),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16.r),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.assignment_outlined, size: 36.sp, color: const Color(0xFF94A3B8)),
+                                    SizedBox(height: 8.h),
+                                    Text(
+                                      'No completed jobs yet',
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFF475569),
+                                      ),
+                                    ),
+                                    SizedBox(height: 4.h),
+                                    Text(
+                                      'Accept an available delivery above to start earning.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 12.sp, color: const Color(0xFF94A3B8)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return Column(
+                              children: jobs.take(5).map((job) {
+                                Color statusBg;
+                                Color statusColor;
+                                if (job.isDelivered) {
+                                  statusBg = const Color(0xFFDCFCE7);
+                                  statusColor = const Color(0xFF15803D);
+                                } else {
+                                  statusBg = const Color(0xFFE0F2FE);
+                                  statusColor = const Color(0xFF0284C7);
+                                }
+
+                                return InkWell(
+                                  onTap: () => OrderBottomSheets.showRiderViewOrderDetails(job),
+                                  borderRadius: BorderRadius.circular(16.r),
+                                  child: _buildOrderItem(
+                                    icon: Icons.inventory_2_outlined,
+                                    orderId: job.orderNumber,
+                                    category: job.itemDescription,
+                                    time: '${job.createdAt.hour.toString().padLeft(2, '0')}:${job.createdAt.minute.toString().padLeft(2, '0')}',
+                                    statusText: job.statusDisplay,
+                                    statusBg: statusBg,
+                                    statusColor: statusColor,
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          }),
+                        ],
+                      ),
+
+                      // Bottom "Go Online / Go Offline" Toggle Button
+                      Positioned(
+                        left: 16.w,
+                        right: 16.w,
+                        bottom: 18.h,
+                        child: Obx(() {
+                          final online = controller.isOnline.value;
+                          return SizedBox(
+                            height: 52.h,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    online ? const Color(0xFFDC2626) : primaryGreen,
+                                foregroundColor: Colors.white,
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16.r),
+                                ),
+                              ),
+                              onPressed: () {
+                                controller.toggleOnlineStatus();
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    online
+                                        ? Icons.sensors_off_rounded
+                                        : Icons.sensors_rounded,
+                                    color: Colors.white,
+                                    size: 20.sp,
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  Text(
+                                    online ? 'Go Offline' : 'Go Online',
+                                    style: TextStyle(
+                                      fontSize: 16.sp,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -710,27 +713,11 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
                             size: 14.sp, color: const Color(0xFF475569)),
                         SizedBox(width: 4.w),
                         Text(
-                          'ETA ${active.estimatedMinutes} min',
+                          active.estimatedMinutes <= 0 ? 'ETA Arriving' : 'ETA ${active.estimatedMinutes} min',
                           style: TextStyle(
                             fontSize: 12.sp,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF334155),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.near_me_outlined,
-                            size: 13.sp, color: const Color(0xFF64748B)),
-                        SizedBox(width: 2.w),
-                        Text(
-                          '3.4 km',
-                          style: TextStyle(
-                            fontSize: 11.5.sp,
-                            color: const Color(0xFF64748B),
                           ),
                         ),
                       ],

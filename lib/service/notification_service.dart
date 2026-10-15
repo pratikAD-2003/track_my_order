@@ -659,12 +659,41 @@ class NotificationService {
     _notifSseClient?.close(force: true);
   }
 
-  void markAllRead() {
+  void markAllRead([String? customerId]) {
     unreadCount.value = 0;
     final updated = notificationHistory.map((n) {
       return {...n, 'read': true};
     }).toList();
     notificationHistory.assignAll(updated);
+
+    final uid = customerId ?? _listeningCustomerId ?? SharedPrefService.getUid() ?? '';
+    if (uid.isEmpty) return;
+
+    // Persist read status in RTDB
+    try {
+      final client = HttpClient();
+      final url = Uri.parse('$_rtdbBaseUrl/notifications/$uid.json');
+      client.getUrl(url).then((req) => req.close()).then((resp) => resp.transform(utf8.decoder).join()).then((bodyStr) {
+        if (bodyStr.isNotEmpty && bodyStr != 'null') {
+          final parsed = jsonDecode(bodyStr);
+          if (parsed is Map) {
+            final patchClient = HttpClient();
+            final patchUrl = Uri.parse('$_rtdbBaseUrl/notifications/$uid.json');
+            final patchMap = <String, dynamic>{};
+            parsed.forEach((k, v) {
+              if (v is Map) {
+                patchMap['$k/read'] = true;
+              }
+            });
+            patchClient.patchUrl(patchUrl).then((req) {
+              req.headers.contentType = ContentType.json;
+              req.write(jsonEncode(patchMap));
+              return req.close();
+            }).then((resp) => resp.drain()).catchError((_) {});
+          }
+        }
+      }).catchError((_) {});
+    } catch (_) {}
   }
 
   Future<void> refreshNotificationHistory(String customerId) async {
