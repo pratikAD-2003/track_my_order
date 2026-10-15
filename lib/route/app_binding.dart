@@ -5,6 +5,7 @@ import '../ui/auth/login/login_screen.dart';
 import '../ui/customer/home/customer_home_screen.dart';
 import '../ui/customer/my_orders/customer_my_orders_screen.dart';
 import '../ui/customer/notifications/notifications_screen.dart';
+import '../ui/location/select_location_screen.dart';
 import '../ui/partner/home/partner_home_screen.dart';
 import '../ui/partner/my_orders/partner_my_orders_screen.dart';
 import 'app_routes.dart';
@@ -36,6 +37,10 @@ class AppBinding {
       name: AppRoutes.customerNotifications,
       page: () => const NotificationsScreen(),
       binding: CustomerNotificationsBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.selectLocation,
+      page: () => const SelectLocationScreen(),
     ),
     // Partner Screens
     GetPage(

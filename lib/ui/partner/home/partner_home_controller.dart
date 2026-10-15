@@ -7,6 +7,7 @@ import '../../../models/order_model.dart';
 import '../../../models/user_model.dart';
 import '../../../route/app_routes.dart';
 import '../../../service/shared_pref_service.dart';
+import '../../../service/notification_service.dart';
 
 class PartnerHomeController extends GetxController {
   final _authService = AuthService();
@@ -328,6 +329,12 @@ class PartnerHomeController extends GetxController {
   // ── Logout ────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     try {
+      final oldUid = currentUser.value?.uid.isNotEmpty == true
+          ? currentUser.value!.uid
+          : (SharedPrefService.getUid() ?? '');
+      if (oldUid.isNotEmpty) {
+        await NotificationService().clearSessionOnLogout(oldUid);
+      }
       await _activeOrderSub?.cancel();
       await _availableOrdersSub?.cancel();
       await _recentDeliveriesSub?.cancel();

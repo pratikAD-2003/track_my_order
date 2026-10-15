@@ -13,18 +13,44 @@ import 'package:permission_handler/permission_handler.dart';
 import 'shared_pref_service.dart';
 
 /// Top-level background message handler for FCM.
-/// Called by Android/iOS when app is background or terminated.
-/// NOTE: Do NOT show a local notification here — Android automatically shows
-/// FCM messages that contain a 'notification' payload in the system tray.
-/// Showing one manually here causes DOUBLE notifications.
+/// Invoked by Android OS / iOS when app is in background or terminated and an FCM message arrives.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
   } catch (_) {}
-  debugPrint('[BGHandler] FCM received in background: ${message.notification?.title}');
-  // Android OS displays the notification automatically from the FCM 'notification' payload.
-  // No manual local notification needed.
+
+  try {
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidSettings);
+    final plugin = FlutterLocalNotificationsPlugin();
+    await plugin.initialize(settings: initSettings);
+
+    const androidDetails = AndroidNotificationDetails(
+      'delivery_updates_channel',
+      'Order & Delivery Updates',
+      channelDescription: 'Real-time notifications for order status updates',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      showWhen: true,
+    );
+    const details = NotificationDetails(android: androidDetails);
+
+    final title = message.notification?.title ?? message.data['title'] ?? 'Order Update';
+    final body = message.notification?.body ?? message.data['body'] ?? '';
+
+    await plugin.show(
+      id: (title.hashCode ^ body.hashCode).abs() % 100000,
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: message.data['orderId'],
+    );
+  } catch (e) {
+    debugPrint('[BGHandler] Local notification error: $e');
+  }
 }
 
 class NotificationService {
@@ -33,21 +59,16 @@ class NotificationService {
   NotificationService._internal();
 
   static const String _rtdbBaseUrl = 'https://firestoreapp-a55a3-default-rtdb.firebaseio.com';
-  static const String _fcmV1Url =
-      'https://fcm.googleapis.com/v1/projects/firestoreapp-a55a3/messages:send';
+  static const String _projectId = 'firestoreapp-a55a3';
 
-  /// Service account for FCM v1 API OAuth2 authentication.
-  /// FCM Legacy API was shut down by Google — v1 is mandatory.
-  static const _serviceAccount = {
-    'type': 'service_account',
-    'project_id': 'firestoreapp-a55a3',
-    'private_key_id': '0bfc43272f15b2c585fce2cceb2772ce97e13a15',
-    'private_key':
-        '-----BEGIN PRIVATE KEY-----\nMIIEuwIBADANBgkqhkiG9w0BAQEFAASCBKUwggShAgEAAoIBAQDHy86esE6Yr7DK\nrEc+ha6k1CZ+r24MGC4GIKJX7CFDJupY6bn83wlU/6l/6Ab/u2Mf+1aF9ANyBT5m\n2u+j1Ijb257jfr1LH57oih5nYWINzM3rInYYDrrflEjrSsxW14YVMK/twLD9jrBk\nNfO9hN95+CCjDXSkzy0XWSmEZ8CJF5mojN81o5d4gSNJjD417jsY47RWf/oBjEcs\n/1WdVQUYdGHT9AVHaOblraU6094t/9mLbSsjED0fSsRYElxGsAgHjpg9O1KR4+XL\nJ4LD0kBuAMwctFc1MChfw+QFRoUieYNKT3/iT8gCictavANk+CDtDVl9zKq8s0ys\nwo090PyfAgMBAAECgf9rs3GuGVxE8nBa0IOXMHj0YWhe4jJwUph8tRrOSnujt1ac\nl2Gq7pAZQbgdOvaK5HiKxPHfQ6qXzDvXNi34Ipmj6r+74pYn6OPAdrPtBpHU3pIi\nLnF6hnY2D7k/HRMJvSSKR7SOdVDzXfe4DV1WzEmrdhYhzx8RuJyV+Xpn5YXkX98J\nEuSas9r05HVbc0MSBPtH4MoYeKtnN8fEGvNaIHFqmSXLggOVhhmS5/fnoxewpId1\nKNYdUmreDJF5fT1DFbySSZB1auiEOUWvdTh3XYDxFqw2t46i0qV0zT/5h6kPXfuj\nwvnDyoSxwvl1MPCuSsp77PgV1Yq4zwLqN8odKcECgYEA/YpVRbZ7PiNGUJL4ShfU\nn4T8CliIYbhKLcw7llSavuf+PKbXYy2RiTDaYz9/Wq1oHp2Q/AP/+QgTL/eTK/xA\n0uS6SxJpNW9QQTSINpakHpb0LDmyV4Qi49ha6phpws+rOfm3I0B88WuEb25bnzzC\nDYTHC7tQSZVM7Zr7nBoXP28CgYEAybwAFIdUBKHBeTTkbZYoWhfgHQ4t0+GVPKd4\nNwPyTnUFy2dCFszJHJj86yTfpiRUioLX7a93KcS6e0ohHFisbWz83HqfWJ6fKlJ8\nOcQ1m7SPMeBuBJoWBPBRZ0oGP1+9gs82wa896D11RxxNGjEOPn00xHbK+/LOwAvJ\nWGhzfdECgYEAv1z+uYxe/upu8vfK8VmFQRWFimWCIoePbXu96dxXpAnESZD/9rp5\nI1w9KTXO8Oj7MkhpGt4GALeIi+bILSXK46KBvZHa2Nr4bw6wVMtkejYje5HcutNf\n5irxjCmXgdNugGarRK8y3qDxJ43bF5grOzrhZUhu8+r9UkVs7UiADX8CgYAOiP8w\ne3ewRb9c7lSvGKyboTDCpyziIVTRY/ejbyNcR849E5mNbv/mkZdXkfaTT/bPbBIG\nzCe32Lbe/z5XfoQd9kZZ1HP6vKMXN44/00VRjLbsjxEeP8PqYy5aVNkSY+GRtUBq\nwCejvhnfH8jmZDZ0hizxIuYJNTt0VuUQ+6WmoQKBgHHs3lyDCJXo6kTL8nIJWrdk\ntdBDWpvoYivOkUJ3DnhwMQJ2dLAmRs4yKuZ1gPPCNpDBrCDSw0I6oBjRxLN0KT8w\nW88ubjHMjDZytNqJzV7xbwul3gWN6wbKeA9rn3fsXqb0zY0bADRWaC2EczC/0Yzg\nsGI0c27I3N3slTtn5fxg\n-----END PRIVATE KEY-----\n',
-    'client_email': 'firebase-adminsdk-q9e2j@firestoreapp-a55a3.iam.gserviceaccount.com',
-    'client_id': '117119256117807819518',
-    'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
-    'token_uri': 'https://oauth2.googleapis.com/token',
+  /// Firebase Service Account credentials configuration for FCM HTTP v1 API.
+  static final Map<String, String> _serviceAccountMap = {
+    "type": "service_account",
+    "project_id": "firestoreapp-a55a3",
+    "private_key_id": "0bfc43272f15b2c585fce2cceb2772ce97e13a15",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEuwIBADANBgkqhkiG9w0BAQEFAASCBKUwggShAgEAAoIBAQDHy86esE6Yr7DK\nrEc+ha6k1CZ+r24MGC4GIKJX7CFDJupY6bn83wlU/6l/6Ab/u2Mf+1aF9ANyBT5m\n2u+j1Ijb257jfr1LH57oih5nYWINzM3rInYYDrrflEjrSsxW14YVMK/twLD9jrBk\nNfO9hN95+CCjDXSkzy0XWSmEZ8CJF5mojN81o5d4gSNJjD417jsY47RWf/oBjEcs\n/1WdVQUYdGHT9AVHaOblraU6094t/9mLbSsjED0fSsRYElxGsAgHjpg9O1KR4+XL\nJ4LD0kBuAMwctFc1MChfw+QFRoUieYNKT3/iT8gCictavANk+CDtDVl9zKq8s0ys\nwo090PyfAgMBAAECgf9rs3GuGVxE8nBa0IOXMHj0YWhe4jJwUph8tRrOSnujt1ac\nl2Gq7pAZQbgdOvaK5HiKxPHfQ6qXzDvXNi34Ipmj6r+74pYn6OPAdrPtBpHU3pIi\nLnF6hnY2D7k/HRMJvSSKR7SOdVDzXfe4DV1WzEmrdhYhzx8RuJyV+Xpn5YXkX98J\nEuSas9r05HVbc0MSBPtH4MoYeKtnN8fEGvNaIHFqmSXLggOVhhmS5/fnoxewpId1\nKNYdUmreDJF5fT1DFbySSZB1auiEOUWvdTh3XYDxFqw2t46i0qV0zT/5h6kPXfuj\nwvnDyoSxwvl1MPCuSsp77PgV1Yq4zwLqN8odKcECgYEA/YpVRbZ7PiNGUJL4ShfU\nn4T8CliIYbhKLcw7llSavuf+PKbXYy2RiTDaYz9/Wq1oHp2Q/AP/+QgTL/eTK/xA\n0uS6SxJpNW9QQTSINpakHpb0LDmyV4Qi49ha6phpws+rOfm3I0B88WuEb25bnzzC\nDYTHC7tQSZVM7Zr7nBoXP28CgYEAybwAFIdUBKHBeTTkbZYoWhfgHQ4t0+GVPKd4\nNwPyTnUFy2dCFszJHJj86yTfpiRUioLX7a93KcS6e0ohHFisbWz83HqfWJ6fKlJ8\nOcQ1m7SPMeBuBJoWBPBRZ0oGP1+9gs82wa896D11RxxNGjEOPn00xHbK+/LOwAvJ\nWGhzfdECgYEAv1z+uYxe/upu8vfK8VmFQRWFimWCIoePbXu96dxXpAnESZD/9rp5\nI1w9KTXO8Oj7MkhpGt4GALeIi+bILSXK46KBvZHa2Nr4bw6wVMtkejYje5HcutNf\n5irxjCmXgdNugGarRK8y3qDxJ43bF5grOzrhZUhu8+r9UkVs7UiADX8CgYAOiP8w\ne3ewRb9c7lSvGKyboTDCpyziIVTRY/ejbyNcR849E5mNbv/mkZdXkfaTT/bPbBIG\nzCe32Lbe/z5XfoQd9kZZ1HP6vKMXN44/00VRjLbsjxEeP8PqYy5aVNkSY+GRtUBq\nwCejvhnfH8jmZDZ0hizxIuYJNTt0VuUQ+6WmoQKBgHHs3lyDCJXo6kTL8nIJWrdk\ntdBDWpvoYivOkUJ3DnhwMQJ2dLAmRs4yKuZ1gPPCNpDBrCDSw0I6oBjRxLN0KT8w\nW88ubjHMjDZytNqJzV7xbwul3gWN6wbKeA9rn3fsXqb0zY0bADRWaC2EczC/0Yzg\nsGI0c27I3N3slTtn5fxg\n-----END PRIVATE KEY-----\n",
+    "client_email": "firebase-adminsdk-q9e2j@firestoreapp-a55a3.iam.gserviceaccount.com",
+    "client_id": "117119256117807819518",
   };
 
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
@@ -61,6 +82,21 @@ class NotificationService {
   String? _listeningCustomerId;
   final Set<String> _processedNotifIds = <String>{};
 
+  // ── OAuth2 Token Generation for FCM v1 ────────────────────────────────────
+
+  static Future<String?> _getFcmAccessToken() async {
+    try {
+      final credentials = ServiceAccountCredentials.fromJson(_serviceAccountMap);
+      final scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
+      final client = await clientViaServiceAccount(credentials, scopes);
+      final token = client.credentials.accessToken.data;
+      client.close();
+      return token;
+    } catch (e) {
+      debugPrint('[NotificationService] FCM v1 OAuth2 Token generation error: $e');
+      return null;
+    }
+  }
 
   // ── Initialization ────────────────────────────────────────────────────────
 
@@ -69,17 +105,14 @@ class NotificationService {
     _isInitialized = true;
 
     try {
-      // 1. Request OS notification permissions
       await _requestPermissions();
 
-      // 2. Configure Foreground Notification Presentation
       await _fcm.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
       );
 
-      // 3. Initialize Local Notifications Plugin
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
@@ -95,7 +128,6 @@ class NotificationService {
         },
       );
 
-      // 4. Create high-importance Android channel for heads-up alerts
       const androidChannel = AndroidNotificationChannel(
         'delivery_updates_channel',
         'Order & Delivery Updates',
@@ -111,22 +143,16 @@ class NotificationService {
         await androidPlugin.createNotificationChannel(androidChannel);
       }
 
-      // 5. Configure FCM Foreground Listener
-      // In foreground, Android does not display system tray notifications automatically.
-      // Display the single heads-up notification via local notifications.
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        debugPrint('[NS] Foreground FCM push received: ${message.notification?.title}');
-        final notif = message.notification;
-        if (notif != null) {
-          showNotification(
-            title: notif.title ?? 'Order Update',
-            body: notif.body ?? '',
-            payload: message.data['orderId'],
-          );
-        }
+        final title = message.notification?.title ?? message.data['title'] ?? 'Order Update';
+        final body = message.notification?.body ?? message.data['body'] ?? '';
+        showNotification(
+          title: title,
+          body: body,
+          payload: jsonEncode(message.data),
+        );
       });
 
-      // 6. Retrieve and save device FCM token
       await saveDeviceToken();
 
       _fcm.onTokenRefresh.listen((newToken) {
@@ -153,8 +179,6 @@ class NotificationService {
     }
   }
 
-  /// Retrieves and stores the device FCM token in Firestore and RTDB.
-  /// Called at app start — may fail if user not logged in yet (UID unknown).
   Future<String?> saveDeviceToken() async {
     try {
       final token = await _fcm.getToken();
@@ -168,22 +192,29 @@ class NotificationService {
     return null;
   }
 
-  /// Call this AFTER login/signup when the UID is known.
-  /// Guarantees the FCM token is registered so push notifications reach this device.
-  Future<void> syncTokenForUid(String uid) async {
+  /// Syncs FCM token for a given user ID and role.
+  /// Stops old listeners and clears in-memory notification state.
+  Future<void> syncTokenForUid(String uid, {String? role}) async {
     if (uid.isEmpty) return;
     try {
+      // 1. Stop any old listener from previous user session
+      clearListening();
+
+      // 2. Clear previous user's notification history in memory
+      notificationHistory.clear();
+      unreadCount.value = 0;
+      _processedNotifIds.clear();
+
       final token = await _fcm.getToken();
       if (token == null || token.isEmpty) return;
-      debugPrint('[NS] syncTokenForUid: saving FCM token for $uid');
 
-      // Save to Firestore
+      // 3. Save to Firestore
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'fcmToken': token,
         'tokenUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // Save to RTDB
+      // 4. Save to RTDB
       final client = HttpClient();
       final url = Uri.parse('$_rtdbBaseUrl/user_fcm_tokens/$uid.json');
       final req = await client.putUrl(url).timeout(const Duration(seconds: 5));
@@ -193,45 +224,62 @@ class NotificationService {
       await resp.drain();
       client.close();
 
-      debugPrint('[NS] ✅ FCM token synced for uid=$uid token=${token.substring(0, 20)}...');
+      debugPrint('[NS] ✅ FCM token synced for $role (uid=$uid)');
     } catch (e) {
       debugPrint('[NS] syncTokenForUid error: $e');
     }
+
+    // 5. Only start SSE customer notification listener if role is 'customer'
+    final userRole = role ?? SharedPrefService.getUserRole();
+    if (userRole == 'customer') {
+      startListeningCustomerNotifications(uid);
+    }
+  }
+
+  /// Clears notification listeners, in-memory state, and FCM token records on user logout
+  Future<void> clearSessionOnLogout(String oldUid) async {
+    // 1. Stop active real-time SSE listener
+    clearListening();
+
+    // 2. Reset in-memory badge and notification list
+    unreadCount.value = 0;
+    notificationHistory.clear();
+    _processedNotifIds.clear();
+
+    // 3. Delete FCM token from RTDB mapping for old UID
+    try {
+      final client = HttpClient();
+      final url = Uri.parse('$_rtdbBaseUrl/user_fcm_tokens/$oldUid.json');
+      final req = await client.deleteUrl(url).timeout(const Duration(seconds: 4));
+      final resp = await req.close().timeout(const Duration(seconds: 4));
+      await resp.drain();
+      client.close();
+      debugPrint('[NS] 🗑️ Cleared RTDB FCM token for logged-out user: $oldUid');
+    } catch (e) {
+      debugPrint('[NS] Warning clearing RTDB token on logout: $e');
+    }
+
+    // 4. Remove FCM token field from Firestore user document
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(oldUid).update({
+        'fcmToken': FieldValue.delete(),
+      });
+    } catch (_) {}
   }
 
   Future<void> _syncTokenToBackends(String token) async {
     final uid = SharedPrefService.getUid();
+    final role = SharedPrefService.getUserRole();
     if (uid == null || uid.isEmpty) return;
 
     try {
-      // 1. Sync to Firestore user doc
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'fcmToken': token,
-        'tokenUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      // 2. Sync to RTDB for instant access by delivery partner
-      final client = HttpClient();
-      final url = Uri.parse('$_rtdbBaseUrl/user_fcm_tokens/$uid.json');
-      final req = await client.putUrl(url).timeout(const Duration(seconds: 4));
-      req.headers.contentType = ContentType.json;
-      req.write(jsonEncode({
-        'token': token,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      }));
-      final resp = await req.close().timeout(const Duration(seconds: 4));
-      await resp.drain();
-      client.close();
-
-      debugPrint('[NotificationService] FCM token synced for user: $uid');
+      await syncTokenForUid(uid, role: role);
     } catch (e) {
       debugPrint('[NotificationService] Token sync warning: $e');
     }
   }
 
   // ── Show Notification ──────────────────────────────────────────────────────
-  // Always fires a system OS heads-up notification regardless of app state.
-  // If app is in foreground, flutter_local_notifications shows it as a heads-up banner.
 
   final Map<String, DateTime> _recentShownNotifications = {};
 
@@ -241,23 +289,19 @@ class NotificationService {
     String? payload,
     Color bannerColor = const Color(0xFF0F62FE),
   }) async {
-    // 1. Deduplication guard: ignore exact duplicate notifications within 5 seconds
     final now = DateTime.now();
     final dedupeKey = '$title::$body';
     if (_recentShownNotifications.containsKey(dedupeKey)) {
       final prevTime = _recentShownNotifications[dedupeKey]!;
       if (now.difference(prevTime).inSeconds < 5) {
-        debugPrint('[NS] ⚡ Suppressed duplicate notification within 5s: $title');
         return;
       }
     }
     _recentShownNotifications[dedupeKey] = now;
     _recentShownNotifications.removeWhere((_, time) => now.difference(time).inSeconds > 15);
 
-    // Deterministic ID so even if identical messages arrive, they overwrite rather than duplicate
     final id = (title.hashCode ^ body.hashCode).abs() % 100000;
 
-    // Always show OS system notification (heads-up in foreground, tray in background)
     try {
       final androidDetails = AndroidNotificationDetails(
         'delivery_updates_channel',
@@ -270,14 +314,16 @@ class NotificationService {
         color: const Color(0xFF0F62FE),
         playSound: true,
         enableVibration: true,
-        fullScreenIntent: false,
       );
       const iosDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
       );
-      final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+      final details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
       await _localNotifications.show(
         id: id,
         title: title,
@@ -285,16 +331,13 @@ class NotificationService {
         notificationDetails: details,
         payload: payload,
       );
-      debugPrint('[NS] Local system notification shown: $title');
     } catch (e) {
-      debugPrint('[NS] Local notification error: $e');
+      debugPrint('[NotificationService] Local notification warning: $e');
     }
   }
 
   // ── Dispatch Notification From Rider to Customer ──────────────────────────
 
-  /// Dispatches an order status change notification from the rider directly to the customer.
-  /// Writes to RTDB notification queue and triggers high-priority FCM push.
   Future<void> sendOrderStatusNotification({
     required String customerId,
     required String orderId,
@@ -352,7 +395,7 @@ class NotificationService {
       'read': false,
     };
 
-    // 1. Write to RTDB customer notification channel (Triggers real-time SSE listener in customer app)
+    // 1. Write to RTDB customer notification channel
     try {
       final client = HttpClient();
       final url = Uri.parse('$_rtdbBaseUrl/notifications/$customerId/$notifId.json');
@@ -403,29 +446,9 @@ class NotificationService {
     } catch (_) {}
   }
 
-  // ── FCM Token Fetch ──────────────────────────────────────────────────
+  // ── FCM REST API Helpers ──────────────────────────────────────────────────
 
-  /// Fetches FCM token for a customer: tries Firestore first (authenticated),
-  /// then falls back to RTDB.
   Future<String?> _fetchCustomerFcmToken(String customerId) async {
-    // 1. Firestore (most reliable — authenticated SDK)
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(customerId)
-          .get()
-          .timeout(const Duration(seconds: 5));
-      final token = doc.data()?['fcmToken']?.toString();
-      if (token != null && token.isNotEmpty) {
-        debugPrint('[NS] FCM token fetched from Firestore ✓ (${token.substring(0, 20)}...)');
-        return token;
-      }
-      debugPrint('[NS] FCM token not found in Firestore for $customerId');
-    } catch (e) {
-      debugPrint('[NS] Firestore token fetch failed: $e');
-    }
-
-    // 2. RTDB fallback
     try {
       final client = HttpClient();
       final url = Uri.parse('$_rtdbBaseUrl/user_fcm_tokens/$customerId.json');
@@ -433,116 +456,90 @@ class NotificationService {
       final resp = await req.close().timeout(const Duration(seconds: 4));
       final bodyStr = await resp.transform(utf8.decoder).join();
       client.close();
-      debugPrint('[NS] RTDB token response for $customerId: $bodyStr');
       if (bodyStr.isEmpty || bodyStr == 'null') return null;
       final parsed = jsonDecode(bodyStr);
-      if (parsed is Map) {
-        final token = parsed['token']?.toString();
-        if (token != null && token.isNotEmpty) {
-          debugPrint('[NS] FCM token fetched from RTDB ✓');
-          return token;
-        }
-      }
+      if (parsed is Map) return parsed['token']?.toString();
     } catch (e) {
-      debugPrint('[NS] RTDB token fetch failed: $e');
+      debugPrint('[NotificationService] Error fetching FCM token: $e');
     }
-
-    debugPrint('[NS] ❌ No FCM token found for customer $customerId in Firestore or RTDB');
     return null;
   }
 
-  // ── FCM v1 Push ────────────────────────────────────────────────────
-
-  /// Gets an OAuth2 access token from the service account for FCM v1 API.
-  Future<String?> _getFcmAccessToken() async {
-    try {
-      final credentials = ServiceAccountCredentials.fromJson(_serviceAccount);
-      const scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
-      final authClient = await clientViaServiceAccount(credentials, scopes)
-          .timeout(const Duration(seconds: 15));
-      final token = authClient.credentials.accessToken.data;
-      authClient.close();
-      debugPrint('[NS] OAuth2 access token obtained (${token.substring(0, 20)}...)');
-      return token;
-    } catch (e) {
-      debugPrint('[NS] ❌ OAuth2 token error: $e');
-      return null;
-    }
-  }
-
-  /// Sends a real FCM push via the FCM v1 REST API.
-  /// Delivers to device OS even when app is background or terminated.
   Future<void> _sendFcmPush({
     required String deviceToken,
     required String title,
     required String body,
     required Map<String, dynamic> data,
   }) async {
-    // 1. Get OAuth2 bearer token
-    final accessToken = await _getFcmAccessToken();
-    if (accessToken == null) {
-      debugPrint('[NS] ❌ Cannot send FCM push: failed to get OAuth2 token');
-      return;
-    }
-
-    // 2. POST to FCM v1
     final client = HttpClient();
     try {
-      final req = await client
-          .postUrl(Uri.parse(_fcmV1Url))
-          .timeout(const Duration(seconds: 10));
-      req.headers.contentType = ContentType.json;
-      req.headers.set('Authorization', 'Bearer $accessToken');
+      final accessToken = await _getFcmAccessToken();
 
-      req.write(jsonEncode({
-        'message': {
-          'token': deviceToken,
-          'notification': {
-            'title': title,
-            'body': body,
-          },
-          'data': data.map((k, v) => MapEntry(k, v.toString())),
-          'android': {
-            'priority': 'HIGH',
+      if (accessToken != null && accessToken.isNotEmpty) {
+        final url = 'https://fcm.googleapis.com/v1/projects/$_projectId/messages:send';
+        final req = await client.postUrl(Uri.parse(url)).timeout(const Duration(seconds: 8));
+        req.headers.contentType = ContentType.json;
+        req.headers.set('Authorization', 'Bearer $accessToken');
+
+        final payload = {
+          'message': {
+            'token': deviceToken,
             'notification': {
-              'channel_id': 'delivery_updates_channel',
-              'notification_priority': 'PRIORITY_MAX',
-              'sound': 'default',
-              'default_vibrate_timings': true,
-              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-              'tag': 'order_${data['orderId'] ?? 'status'}',
+              'title': title,
+              'body': body,
+            },
+            'data': data.map((k, v) => MapEntry(k, v.toString())),
+            'android': {
+              'priority': 'HIGH',
+              'notification': {
+                'channel_id': 'delivery_updates_channel',
+                'notification_priority': 'PRIORITY_MAX',
+                'sound': 'default',
+                'default_vibrate_timings': true,
+                'default_sound': true,
+                'visibility': 'PUBLIC',
+                'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+              },
+            },
+            'apns': {
+              'headers': {'apns-priority': '10'},
+              'payload': {
+                'aps': {
+                  'alert': {'title': title, 'body': body},
+                  'sound': 'default',
+                  'badge': 1,
+                  'content-available': 1,
+                },
+              },
             },
           },
-        },
-      }));
+        };
 
-      final resp = await req.close().timeout(const Duration(seconds: 10));
-      final respBody = await resp.transform(utf8.decoder).join();
+        req.write(jsonEncode(payload));
+        final resp = await req.close().timeout(const Duration(seconds: 8));
+        final respBody = await resp.transform(utf8.decoder).join();
 
-      if (resp.statusCode == 200) {
-        debugPrint('[NS] ✅ FCM v1 push delivered! token=${deviceToken.substring(0, 15)}...');
-      } else {
-        debugPrint('[NS] ❌ FCM v1 error ${resp.statusCode}: $respBody');
+        if (resp.statusCode == 200) {
+          debugPrint('[NotificationService] FCM v1 push delivered successfully to $deviceToken');
+        } else {
+          debugPrint('[NotificationService] FCM v1 Push status ${resp.statusCode}: $respBody');
+        }
       }
     } catch (e) {
-      debugPrint('[NS] FCM v1 push exception: $e');
+      debugPrint('[NotificationService] FCM v1 push request error: $e');
     } finally {
       client.close();
     }
   }
 
-  // ── Customer Notification Listener (Real-Time Influx) ─────────────────────
+  // ── Customer Notification Listener ───────────────────────────────────────
 
-  /// Subscribes to real-time notification events for the customer
   void startListeningCustomerNotifications(String customerId) {
     if (_listeningCustomerId == customerId && _notifSseClient != null) return;
     _listeningCustomerId = customerId;
     _notifSseClient?.close(force: true);
 
-    // Initial fetch of unread count & history
     _fetchCustomerNotificationHistory(customerId);
-
-    // Listen continuously via SSE on notifications/$customerId.json
     _startCustomerNotificationSse(customerId);
   }
 
@@ -627,7 +624,6 @@ class NotificationService {
     if (data is! Map) return;
 
     if (path == '/' || path.isEmpty) {
-      // Full dump
       data.forEach((k, v) {
         if (v is Map) {
           _processedNotifIds.add(k.toString());
@@ -640,15 +636,21 @@ class NotificationService {
     final parts = clean.split('/');
     final notifId = parts[0];
 
-    // Check if this is a newly arrived notification that we haven't shown yet
     if (!_processedNotifIds.contains(notifId)) {
       _processedNotifIds.add(notifId);
 
-      // Increment badge and store in history for in-app notification center
+      final title = data['title']?.toString() ?? 'Order Update';
+      final body = data['body']?.toString() ?? '';
+      final colorVal = data['colorHex'] is num ? (data['colorHex'] as num).toInt() : 0xFF0F62FE;
+
       unreadCount.value++;
       notificationHistory.insert(0, Map<String, dynamic>.from(data));
-      // NOTE: Do NOT call showNotification() here.
-      // FCM push is the single source of truth for heads-up / system tray notifications.
+
+      showNotification(
+        title: title,
+        body: body,
+        bannerColor: Color(colorVal),
+      );
     }
   }
 
@@ -657,9 +659,6 @@ class NotificationService {
     _notifSseClient?.close(force: true);
   }
 
-  // ── Notification Management Helpers ──────────────────────────────────────
-
-  /// Marks all notifications in history as read and resets badge counter.
   void markAllRead() {
     unreadCount.value = 0;
     final updated = notificationHistory.map((n) {
@@ -668,12 +667,10 @@ class NotificationService {
     notificationHistory.assignAll(updated);
   }
 
-  /// Re-fetches notification history from RTDB for the given customer.
   Future<void> refreshNotificationHistory(String customerId) async {
     await _fetchCustomerNotificationHistory(customerId);
   }
 
-  /// Deletes all notifications from RTDB for the given customer.
   Future<void> clearAllNotifications(String customerId) async {
     notificationHistory.clear();
     unreadCount.value = 0;

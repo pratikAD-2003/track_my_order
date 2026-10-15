@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import '../models/order_model.dart';
+import '../models/place_location.dart';
+import '../service/places_service.dart';
 import '../ui/customer/home/customer_home_controller.dart';
+import '../ui/location/select_location_screen.dart';
 import 'map_widget.dart';
 
 class OrderBottomSheets {
@@ -17,6 +20,8 @@ class OrderBottomSheets {
   /// Step 1: Create Order Form Bottom Sheet
   static void showCreateOrderForm(
     BuildContext context, {
+    String? initialPickup,
+    String? initialDrop,
     Future<bool> Function({
       required String name,
       required String pickup,
@@ -24,11 +29,24 @@ class OrderBottomSheets {
     })? onCreateOrder,
   }) {
     final nameController = TextEditingController(text: 'Food Delivery');
-    final pickupController =
-        TextEditingController(text: '12, MG Road, Near City Mall, Bhopal');
-    final dropController =
-        TextEditingController(text: '21, New Market Rd, Bhopal');
+    final pickupController = TextEditingController(
+      text: initialPickup ?? 'Fetching current location...',
+    );
+    final dropController = TextEditingController(
+      text: initialDrop ?? '',
+    );
     final isSubmitting = false.obs;
+
+    // Initially always auto-fetch device current location for pickup if not provided
+    if (initialPickup == null || initialPickup.isEmpty) {
+      PlacesService().getCurrentLocation().then((loc) {
+        if (loc != null) {
+          pickupController.text = loc.address;
+        } else if (pickupController.text == 'Fetching current location...') {
+          pickupController.text = 'Current Location';
+        }
+      });
+    }
 
     final categories = ['Food Delivery', 'Documents', 'Grocery', 'Pharmacy'];
 
@@ -145,106 +163,145 @@ class OrderBottomSheets {
 
               SizedBox(height: 14.h),
 
-              // Pickup Location *
-              RichText(
-                text: TextSpan(
-                  text: 'Pickup Location ',
-                  style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F172A)),
-                  children: const [
-                    TextSpan(text: '*', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-              SizedBox(height: 6.h),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.location_on_outlined,
-                        color: const Color(0xFF10B981), size: 20.sp),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: TextField(
-                        controller: pickupController,
-                        decoration: const InputDecoration(
-                          hintText: 'Enter pickup address',
-                          border: InputBorder.none,
+              // Helper callback to open SelectLocationScreen
+              Builder(
+                builder: (ctx) {
+                  Future<void> openSelectLocationScreen({bool focusDrop = false}) async {
+                    final result = await Navigator.push<dynamic>(
+                      ctx,
+                      MaterialPageRoute(
+                        builder: (_) => SelectLocationScreen(
+                          initialPickupAddress: pickupController.text,
+                          initialDropAddress: dropController.text,
+                          focusDrop: focusDrop,
                         ),
-                        style: TextStyle(
-                            fontSize: 13.5.sp, fontWeight: FontWeight.w500),
                       ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.map_outlined,
-                          color: primaryBlue, size: 20.sp),
-                      tooltip: 'Pick on map',
-                      onPressed: () {
-                        Get.back();
-                        showPickupMapSelection(context);
-                      },
-                    ),
-                  ],
-                ),
-              ),
+                    );
 
-              SizedBox(height: 14.h),
+                    if (result is Map) {
+                      final p = result['pickup'] as PlaceLocation?;
+                      final d = result['drop'] as PlaceLocation?;
+                      if (p != null) pickupController.text = p.address;
+                      if (d != null) dropController.text = d.address;
+                    }
+                  }
 
-              // Drop Location *
-              RichText(
-                text: TextSpan(
-                  text: 'Drop Location ',
-                  style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F172A)),
-                  children: const [
-                    TextSpan(text: '*', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-              SizedBox(height: 6.h),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 2.h),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.location_on_outlined,
-                        color: const Color(0xFFEF4444), size: 20.sp),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: TextField(
-                        controller: dropController,
-                        decoration: const InputDecoration(
-                          hintText: 'Enter drop destination',
-                          border: InputBorder.none,
-                        ),
-                        style: TextStyle(
-                            fontSize: 13.5.sp, fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.map_outlined,
-                          color: primaryBlue, size: 20.sp),
-                      tooltip: 'Pick on map',
-                      onPressed: () {
-                        Get.back();
-                        showDropMapSelection(context);
-                      },
-                    ),
-                  ],
-                ),
+                  return AnimatedBuilder(
+                    animation: Listenable.merge([pickupController, dropController]),
+                    builder: (context, _) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Pickup Location *
+                          RichText(
+                            text: TextSpan(
+                              text: 'Pickup Location ',
+                              style: TextStyle(
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF0F172A),
+                              ),
+                              children: const [
+                                TextSpan(text: '*', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 6.h),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12.r),
+                            onTap: () => openSelectLocationScreen(focusDrop: false),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.trip_origin_rounded, color: const Color(0xFF10B981), size: 18.sp),
+                                  SizedBox(width: 10.w),
+                                  Expanded(
+                                    child: Text(
+                                      pickupController.text.isNotEmpty
+                                          ? pickupController.text
+                                          : 'Select pickup location',
+                                      style: TextStyle(
+                                        fontSize: 13.5.sp,
+                                        fontWeight: FontWeight.w500,
+                                        color: pickupController.text.isNotEmpty
+                                            ? const Color(0xFF0F172A)
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  Icon(Icons.my_location_rounded, color: const Color(0xFF10B981), size: 20.sp),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(height: 14.h),
+
+                          // Drop Location *
+                          RichText(
+                            text: TextSpan(
+                              text: 'Drop Location ',
+                              style: TextStyle(
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF0F172A),
+                              ),
+                              children: const [
+                                TextSpan(text: '*', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 6.h),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12.r),
+                            onTap: () => openSelectLocationScreen(focusDrop: true),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.location_on_rounded, color: const Color(0xFFEF4444), size: 18.sp),
+                                  SizedBox(width: 10.w),
+                                  Expanded(
+                                    child: Text(
+                                      dropController.text.isNotEmpty
+                                          ? dropController.text
+                                          : 'Select drop destination',
+                                      style: TextStyle(
+                                        fontSize: 13.5.sp,
+                                        fontWeight: FontWeight.w500,
+                                        color: dropController.text.isNotEmpty
+                                            ? const Color(0xFF0F172A)
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  Icon(Icons.location_on_outlined, color: const Color(0xFFEF4444), size: 20.sp),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
               ),
 
               SizedBox(height: 22.h),

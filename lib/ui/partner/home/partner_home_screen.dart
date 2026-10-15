@@ -75,44 +75,6 @@ class PartnerHomeScreen extends GetView<PartnerHomeController> {
                       onPressed: controller.confirmLogout,
                       tooltip: 'Logout',
                     ),
-                    SizedBox(width: 4.w),
-                    // Notification Bell with Badge
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(8.r),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.notifications_none_rounded,
-                              color: Colors.white, size: 22.sp),
-                        ),
-                        Positioned(
-                          top: -2,
-                          right: -2,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
-                            ),
-                            constraints:
-                                BoxConstraints(minWidth: 16.w, minHeight: 16.h),
-                            child: Text(
-                              '2',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.sp,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               );

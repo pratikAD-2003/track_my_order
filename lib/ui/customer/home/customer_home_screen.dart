@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import '../../../models/order_model.dart';
-import '../../../route/app_routes.dart'; // ignore: unused_import
+import '../../../route/app_routes.dart';
 import '../../../utils/order_bottom_sheets.dart';
 import 'customer_home_controller.dart';
 

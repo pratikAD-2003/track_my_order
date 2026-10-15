@@ -244,6 +244,12 @@ class CustomerHomeController extends GetxController {
   // ── Logout ────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     try {
+      final oldUid = currentUser.value?.uid.isNotEmpty == true
+          ? currentUser.value!.uid
+          : (SharedPrefService.getUid() ?? '');
+      if (oldUid.isNotEmpty) {
+        await notificationService.clearSessionOnLogout(oldUid);
+      }
       await _activeOrderSub?.cancel();
       await _recentOrdersSub?.cancel();
       await _authService.logout();
